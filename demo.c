@@ -13,7 +13,6 @@ char        buffer[256];
 
 Pgpaint     bg;
 Pgpaint     accent;
-Pgpaint     accent2;
 Pgpaint     fg;
 
 unsigned    startfont;
@@ -162,8 +161,8 @@ void star(Pgpt p, float size, float points) {
 
 void flag() {
     pgsave(g);
-    pgset_fill_color(g, (Pgcolor) {0.6f, 0.3f, 0.3f, 1.0f});
-    pgset_stroke_color(g, (Pgcolor) {0.3f, 0.6f, 0.7f, 1.0f});
+    pgset_fill_color(g, (Pgcolor) {0.125f, 0.3f, 0.09f, 1.0f});
+    pgset_stroke_color(g, (Pgcolor) {0.125f, 0.3f, 0.65f, 1.0f});
     pgset_line_width(g, 10.0f);
     pgtranslatef(g, pgwidth(g) / 2.0f - 300.0f, pgheight(g) / 2.0f - 25.0f);
     star(pgpt(000, 0), 50, 6);
@@ -187,16 +186,12 @@ void typing() {
 }
 
 static void update() {
+    pgset_default_colorspace(PG_LCHAB);
     bg = pglinearf(0.0f, 0.0f, pgwidth(g), pgheight(g));
-    pgadd_stop(&bg, 0.0f, (Pgcolor) {0.9f, 0.125f, 0.25f, 1.0f});
+    pgadd_stop(&bg, 0.0f, (Pgcolor) {1.0f, 0.125f, 0.25f, 1.0f});
     pgadd_stop(&bg, 1.0f, (Pgcolor) {0.7f, 0.125f, 0.25f, 1.0f});
-    accent = pgsolidf(0.125f, 0.5f, 0.75f, 1.0f);
-    accent2 = pgsolidf(0.3f, 1.0f, 0.05f, 1.0f);
+    accent = pgsolidf(0.0f, 0.5f, 0.65f, 1.0f);
     fg = pgsolidf(0.1f, 0.0f, 0.0f, 1.0f);
-    pgset_colorspace(&bg, PG_LCHAB);
-    pgset_colorspace(&accent, PG_LCHAB);
-    pgset_colorspace(&accent2, PG_LCHAB);
-    pgset_colorspace(&fg, PG_LCHAB);
 
     pgident(g);
     pgclear(g, bg);
@@ -206,14 +201,11 @@ static void update() {
     // allglyphs(pgfind_font("Arial Nova", 0, 0));
     fonts();
 
-    // Pgpaint grad = pgradialf(110.0f, 90.0f, 3.0f, 100.0f, 100.0f, 70.0f);
-    // Pgpaint grad = pglinearf(0.0f, 0.0f, 640.0f, 0.0f);
-    // pgadd_stop(&grad, 0.0f, (Pgcolor){0.0f, 1.0f, 0.0f, 1.0f});
-    // pgadd_stop(&grad, 0.5f, (Pgcolor){1.0f, 0.0f, 0.0f, 1.0f});
-    // pgadd_stop(&grad, 1.0f, (Pgcolor){0.0f, 0.0f, 0.0f, 1.0f});
+    // Pgpaint grad = pglinearf(0.0f, 0.0f, pgwidth(g), 0.0f);
+    // pgadd_stop(&grad, 0.0f, (Pgcolor){0.125f, 0.5f, 0.0f, 1.0f});
+    // pgadd_stop(&grad, 1.0f, (Pgcolor){0.125f, 0.5f, 1.0f, 1.0f});
     // pgset_fill(g, grad);
-
-
+    // pgclear(g, grad);
 
     glfwSwapBuffers(win);
 }

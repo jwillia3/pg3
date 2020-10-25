@@ -200,6 +200,8 @@ Pgpaint pgradialf(float ax, float ay, float ra, float bx, float by, float rb);
 Pgpaint *pgadd_stop(Pgpaint *paint, float t, Pgcolor colour);
 Pgpaint *pgadd_stopf(Pgpaint *paint, float t, float x, float y, float z, float a);
 Pgpaint *pgset_colorspace(Pgpaint *paint, Pgcolorspace cspace);
+Pgcolorspace pgset_default_colorspace(Pgcolorspace cspace);
+Pgcolorspace pgget_default_colorspace();
 
 
 /* State Manipulation. */

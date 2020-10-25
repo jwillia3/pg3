@@ -9,6 +9,7 @@
 #include "pg.internal.h"
 
 static Pgfamily     *allfamilies;
+static Pgcolorspace default_colorspace;
 
 
 static inline int stricmp(const char *ap, const char *bp) {
@@ -49,10 +50,25 @@ Pgpath pgpath(Pg *g) { return g? g->path: (Pgpath) {0, 0}; }
     Paints.
 */
 
+Pgcolorspace pgset_default_colorspace(Pgcolorspace cspace) {
+    Pgcolorspace old = default_colorspace;
+    switch (cspace) {
+    case PG_SRGB:
+    case PG_LCHAB:
+    case PG_LAB:
+    case PG_XYZ:
+        default_colorspace = cspace;
+        break;
+    }
+    return old;
+}
+Pgcolorspace pgget_default_colorspace() {
+    return default_colorspace;
+}
 Pgpaint pgsolid(Pgcolor colour) {
     return (Pgpaint) {
         .type = PG_SOLID_PAINT,
-        .cspace = PG_SRGB,
+        .cspace = default_colorspace,
         .colours[0] = colour,
         .nstops = 1,
     };
@@ -63,7 +79,7 @@ Pgpaint pgsolidf(float x, float y, float z, float a) {
 Pgpaint pglinear(Pgpt a, Pgpt b) {
     return (Pgpaint) {
         .type = PG_LINEAR_PAINT,
-        .cspace = PG_SRGB,
+        .cspace = default_colorspace,
         .colours[0] = (Pgcolor) {0.0f, 0.0f, 0.0f, 1.0f},
         .stops[0] = 0.0f,
         .nstops = 0,
