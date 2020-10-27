@@ -43,6 +43,12 @@ static inline Pgpt pgaddpt(Pgpt a, Pgpt b) { return pgpt(a.x+b.x, a.y+b.y); }
 static inline Pgpt pgsubpt(Pgpt a, Pgpt b) { return pgpt(a.x-b.x, a.y-b.y); }
 static inline Pgpt pgmulpt(Pgpt a, Pgpt b) { return pgpt(a.x*b.x, a.y*b.y); }
 static inline Pgpt pgdivpt(Pgpt a, Pgpt b) { return pgpt(a.x/b.x, a.y/b.y); }
+
+static inline Pgpt pgaddptf(Pgpt a, float x, float y) { return pgpt(a.x+x, a.y+y); }
+static inline Pgpt pgsubptf(Pgpt a, float x, float y) { return pgpt(a.x-x, a.y-y); }
+static inline Pgpt pgmulptf(Pgpt a, float x, float y) { return pgpt(a.x*x, a.y*y); }
+static inline Pgpt pgdivptf(Pgpt a, float x, float y) { return pgpt(a.x/x, a.y/y); }
+
 static inline Pgpt pgscalept(Pgpt p, float s) { return pgpt(p.x * s, p.y * s); }
 static inline Pgpt pgmid(Pgpt a, Pgpt b) {
     return pgpt((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
@@ -60,6 +66,16 @@ static inline float pgdot(Pgpt a, Pgpt b) { return a.x * b.x + a.y * b.y; }
 static inline Pgpt pg90ccw(Pgpt p) { return pgpt(-p.y, p.x); }
 static inline Pgpt pg90cw(Pgpt p) { return pgpt(p.y, -p.x); }
 
+static inline bool pgin_rect(Pgrect r, Pgpt p) {
+    return  p.x >= r.a.x && p.y >= r.a.y &&
+            p.x <= r.b.x && p.y <= r.b.y;
+}
+static inline Pgpt pgrect_size(Pgrect r) {
+    return pgpt(r.b.x - r.a.x, r.b.y - r.a.y);
+}
+static inline bool pgrect_valid(Pgrect r) {
+    return r.a.x <= r.b.x && r.a.y <= r.b.y;
+}
 
 
 /*

@@ -478,7 +478,7 @@ endcap(Pgpt w,
 
 static void _stroke(Pg *g) {
     GL          *gl = (GL*) g;
-    Pgpt     *verts;
+    Pgpt        *verts;
     unsigned    *subs;
     unsigned    nverts;
     unsigned    nsubs;
@@ -490,15 +490,20 @@ static void _stroke(Pg *g) {
     strokectm.e = 0.0f;
     strokectm.f = 0.0f;
     float       lw = 0.5f * pgget_linewidth(g);
-    Pgpt     w = pgapply_mat(strokectm, pgpt(lw, lw));
+    Pgpt        w = pgapply_mat(strokectm, pgpt(lw, lw));
 
-    Pgpt    *final = malloc(6 * nverts * sizeof *final);
+    Pgpt cap = pgget_linecap(g) == PG_BUTT_CAP? pgpt(0.0f, 0.0f):
+               pgget_linecap(g) == PG_SQUARE_CAP? w:
+               pgpt(0.0f, 0.0f);
+
+    Pgpt        *final = malloc(6 * nverts * sizeof *final);
     unsigned    nfinal = 0;
 
     for (unsigned s = 0; s < nsubs; s++) {
         bool        closed = subs[s] & CLOSED;
         unsigned    start = SUB(subs[s]);
         unsigned    end = SUB(subs[s + 1]);
+
         if (closed) {
             end -= 1;
             nfinal = miter(w,
@@ -514,11 +519,19 @@ static void _stroke(Pg *g) {
                             verts[end - 2], verts[end - 1],
                             verts[start], verts[start + 1],
                             final, nfinal);
+        } else if (end - start <= 2) {
+            if (end - start == 2) {
+                Pgpt nv = pgnorm(pgsubpt(verts[1], verts[0]));
+                Pgpt wv = pgmulpt(pg90ccw(nv), w);
+                Pgpt cv = pgmulpt(nv, cap);
+                Pgpt a = pgsubpt(pgsubpt(verts[0], wv), cv);
+                Pgpt b = pgsubpt(pgaddpt(verts[0], wv), cv);
+                Pgpt c = pgaddpt(pgsubpt(verts[1], wv), cv);
+                Pgpt d = pgaddpt(pgaddpt(verts[1], wv), cv);
+                final[nfinal++] = a, final[nfinal++] = b, final[nfinal++] = c;
+                final[nfinal++] = b, final[nfinal++] = c, final[nfinal++] = d;
+            }
         } else {
-            Pgpt cap = pgget_linecap(g) == PG_BUTT_CAP? pgpt(0.0f, 0.0f):
-                       pgget_linecap(g) == PG_SQUARE_CAP? w:
-                       pgpt(0.0f, 0.0f);
-
             nfinal = startcap(w, cap,
                                 verts[start], verts[start + 1],
                                 verts[start + 2], final, nfinal);

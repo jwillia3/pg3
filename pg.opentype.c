@@ -1262,9 +1262,10 @@ static void _glyph(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
     }
 }
 
-static float _measureglyph(Pgfont *font, unsigned glyph) {
+static Pgpt _measure_glyph(Pgfont *font, unsigned glyph) {
     unsigned nhmtx = ((otf*) font)->nhmtx;
-    return TW(hmtx, 4 * (glyph < nhmtx? glyph: nhmtx - 1)) * font->sx;
+    float adv = TW(hmtx, 4 * (glyph < nhmtx? glyph: nhmtx - 1)) * font->sx;
+    return pgpt(adv, pgfont_height(font));
 }
 
 static const Pgfont_methods vfont = {
@@ -1272,5 +1273,5 @@ static const Pgfont_methods vfont = {
     _propf,
     _props,
     _glyph,
-    _measureglyph,
+    _measure_glyph,
 };

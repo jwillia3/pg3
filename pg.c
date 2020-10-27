@@ -247,6 +247,19 @@ static void addpt(Pgpath *path, Pgpart part) {
     }
     path->parts[path->n++] = part;
 }
+Pgpt pgcur(Pg *g) {
+    if (g && g->path.n) {
+        Pgpart *p = &g->path.parts[g->path.n - 1];
+        switch (p->form) {
+        case PG_PART_CLOSE: return p->pt[0];
+        case PG_PART_MOVE:  return p->pt[0];
+        case PG_PART_LINE:  return p->pt[0];
+        case PG_PART_CURVE3:return p->pt[1];
+        case PG_PART_CURVE4:return p->pt[2];
+        }
+    }
+    return pgpt(0.0f, 0.0f);
+}
 Pg *pgmove(Pg *g, Pgpt p) {
     if (g)
         addpt(&g->path, (Pgpart) {PG_PART_MOVE, {p}});
@@ -262,6 +275,12 @@ Pg *pgline(Pg *g, Pgpt p) {
 }
 Pg *pglinef(Pg *g, float x, float y) {
     return pgline(g, pgpt(x, y));
+}
+Pg *pgrline(Pg *g, Pgpt p) {
+    return pgline(g, pgaddpt(pgcur(g), p));
+}
+Pg *pgrlinef(Pg *g, float x, float y) {
+    return pgrline(g, pgpt(x, y));
 }
 Pg *pgcurve3(Pg *g, Pgpt b, Pgpt c) {
     if (g && prevpart(g->path) != PG_PART_CLOSE)
@@ -281,13 +300,45 @@ Pg *pgcurve4f(Pg *g, float bx, float by, float cx, float cy, float dx, float dy)
 }
 Pg *pgclose(Pg *g) {
     if (g && prevpart(g->path) != PG_PART_CLOSE)
-        addpt(&g->path, (Pgpart) {PG_PART_CLOSE, {{0.0f, 0.0f}}});
+        addpt(&g->path, (Pgpart) {PG_PART_CLOSE, {pgcur(g)}});
     return g;
 }
 Pg *pgreset_path(Pg *g) {
     if (g)
         g->path.n = 0;
     return g;
+}
+Pg *pgdraw_rect(Pg *g, Pgrect r) {
+    if (g && pgrect_valid(r)) {
+        pgmove(g, r.a);
+        pglinef(g, r.b.x, r.a.y);
+        pgline(g, r.b);
+        pglinef(g, r.a.x, r.b.y);
+        pgclose(g);
+    }
+    return g;
+}
+Pg *pgdraw_rectf(Pg *g, float ax, float ay, float bx, float by) {
+    return pgdraw_rect(g, pgrect(pgpt(ax, ay), pgpt(bx, by)));
+}
+Pg *pgdraw_rounded(Pg *g, Pgrect r, float rad) {
+    if (g && pgrect_valid(r) && rad > 0.0f) {
+        float rx = fminf(rad, r.b.x - r.a.x);
+        float ry = fminf(rad, r.b.y - r.a.y);
+        pgmovef(g, r.a.x + rx, r.a.y);
+        pglinef(g, r.b.x - rx, r.a.y);
+        pgcurve3f(g, r.b.x, r.a.y, r.b.x, r.a.y + ry);
+        pglinef(g, r.b.x, r.b.y - ry);
+        pgcurve3f(g, r.b.x, r.b.y, r.b.x - rx, r.b.y);
+        pglinef(g, r.a.x + rx, r.b.y);
+        pgcurve3f(g, r.a.x, r.b.y, r.a.x, r.b.y - ry);
+        pglinef(g, r.a.x, r.a.y + ry);
+        pgcurve3f(g, r.a.x, r.a.y, r.a.x + rx, r.a.y);
+    }
+    return g;
+}
+Pg *pgdraw_roundedf(Pg *g, float ax, float ay, float bx, float by, float rad) {
+    return pgdraw_rounded(g, pgrect(pgpt(ax, ay), pgpt(bx, by)), rad);
 }
 
 
@@ -482,6 +533,9 @@ Pgfamily *pglist_fonts() {
 }
 
 Pgfont *pgfind_font(const char *family, unsigned weight, bool sloped) {
+    if (!family)
+        return 0;
+
     Pgfamily *fam = pglist_fonts();
 
     while (fam->name && stricmp(fam->name, family))
@@ -512,6 +566,7 @@ Pgfont *pgfind_font(const char *family, unsigned weight, bool sloped) {
 
     return pgopen_font_file(best->path, best->index);
 }
+
 Pgfont *pgopen_font_file(const char *path, unsigned index) {
     if (!path)
         return 0;
@@ -565,13 +620,16 @@ Pgfont *pgscale_font(Pgfont *font, float sx, float sy) {
     }
     return font;
 }
+float pgfont_height(Pgfont *font) {
+    return pgfontpropf(font, PG_FONT_EM);
+}
 unsigned pgget_glyph(Pgfont *font, unsigned codepoint) {
     return font->cmap[codepoint < 65536? codepoint: 0xfffd];
 }
 Pgpt pgdraw_glyph(Pg *g, Pgfont *font, Pgpt p, unsigned glyph) {
     if (g && font && glyph < font->nglyphs && font->v && font->v->glyph)
         font->v->glyph(g, font, p, glyph);
-    return font? pgpt(p.x + pgmeasure_glyph(font, glyph), p.y): p;
+    return font? pgpt(p.x + pgmeasure_glyph(font, glyph).x, p.y): p;
 }
 Pgpt pgdraw_char(Pg *g, Pgfont *font, Pgpt p, unsigned codepoint) {
     return pgdraw_glyph(g, font, p, pgget_glyph(font, codepoint));
@@ -617,23 +675,39 @@ Pgpt pgprintf(Pg *g, Pgfont *font, Pgpt p, const char *str, ...) {
     va_end(ap);
     return result;
 }
-float pgmeasure_glyph(Pgfont *font, unsigned glyph) {
-    if (font && glyph < font->nglyphs && font->v && font->v->measureglyph)
-        return font->v->measureglyph(font, glyph);
-    return 0.0f;
+Pgpt pgmeasure_glyph(Pgfont *font, unsigned glyph) {
+    if (font && glyph < font->nglyphs && font->v && font->v->measure_glyph)
+        return font->v->measure_glyph(font, glyph);
+    return pgpt(0.0f, 0.0f);
 }
-float pgmeasure_char(Pgfont *font, unsigned codepoint) {
+Pgpt pgmeasure_char(Pgfont *font, unsigned codepoint) {
     return pgmeasure_glyph(font, pgget_glyph(font, codepoint));
 }
-float pgmeasure_chars(Pgfont *font, const char *s, unsigned n) {
+Pgpt pgmeasure_chars(Pgfont *font, const char *s, unsigned n) {
     if (font && s && n) {
-        float   x = 0.0f;
-        for (unsigned i = 0; i < n; i++)
-            x += pgmeasure_char(font, (unsigned char) s[i]);
-        return x;
+        Pgpt    p = pgpt(0.0f, 0.0f);
+        for (unsigned i = 0; i < n; i++) {
+            Pgpt q = pgmeasure_char(font, (unsigned char) s[i]);
+            p = pgpt(p.x + q.x, fmaxf(p.y, q.y));
+        }
+        return p;
     }
-    return 0.0f;
+    return pgpt(0.0f, 0.0f);
 }
-float pgmeasure_string(Pgfont *font, const char *str) {
+Pgpt pgmeasure_string(Pgfont *font, const char *str) {
     return pgmeasure_chars(font, str, str? (unsigned) strlen(str): 0);
+}
+unsigned pgfit_chars(Pgfont *font, const char *s, unsigned n, float width) {
+    if (font && s) {
+        float       vw = 0.0f;
+        unsigned    nfit = 0;
+        const uint8_t *end = (uint8_t*) s + n;
+        for (const uint8_t *i = (uint8_t*) s; i < end; nfit++)
+            vw += pgmeasure_char(font, pgread_utf8(&i)).x;
+        return nfit - (vw > width? 1: 0);
+    }
+    return 0;
+}
+unsigned pgfit_string(Pgfont *font, const char *str, float width) {
+    return pgfit_chars(font, str, str? strlen(str): 0, width);
 }

@@ -66,16 +66,24 @@ typedef struct {
 } Pgpath;
 
 Pgpath  pgpath(Pg *g);
+Pgpt    pgcur(Pg *g);
 Pg      *pgmove(Pg *g, Pgpt p);
 Pg      *pgmovef(Pg *g, float x, float y);
 Pg      *pgline(Pg *g, Pgpt p);
 Pg      *pglinef(Pg *g, float x, float y);
+Pg      *pgrline(Pg *g, Pgpt p);
+Pg      *pgrlinef(Pg *g, float x, float y);
 Pg      *pgcurve3(Pg *g, Pgpt b, Pgpt c);
 Pg      *pgcurve3f(Pg *g, float bx, float by, float cx, float cy);
 Pg      *pgcurve4(Pg *g, Pgpt b, Pgpt c, Pgpt d);
 Pg      *pgcurve4f(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 Pg      *pgclose(Pg *g);
 Pg      *pgreset_path(Pg *g);
+
+Pg      *pgdraw_rect(Pg *g, Pgrect r);
+Pg      *pgdraw_rectf(Pg *g, float ax, float ay, float bx, float by);
+Pg      *pgdraw_rounded(Pg *g, Pgrect r, float rad);
+Pg      *pgdraw_roundedf(Pg *g, float ax, float ay, float bx, float by, float rad);
 
 
 
@@ -269,7 +277,7 @@ typedef struct {
     float       (*propf)(Pgfont *font, Pgfontprop id);
     const char  *(*props)(Pgfont *font, Pgfontprop id);
     void        (*glyph)(Pg *g, Pgfont *font, Pgpt p, unsigned glyph);
-    float       (*measureglyph)(Pgfont *font, unsigned glyph);
+    Pgpt        (*measure_glyph)(Pgfont *font, unsigned glyph);
 } Pgfont_methods;
 
 struct Pgfont {
@@ -334,6 +342,7 @@ float       pgfontpropf(Pgfont *font, Pgfontprop id);
 int         pgfontpropi(Pgfont *font, Pgfontprop id);
 const char  *pgfontprops(Pgfont *font, Pgfontprop id);
 Pgfont      *pgscale_font(Pgfont *font, float sx, float sy);
+float       pgfont_height(Pgfont *font);
 
 unsigned    pgget_glyph(Pgfont *font, unsigned codepoint);
 Pgpt        pgdraw_glyph(Pg *g, Pgfont *font, Pgpt p, unsigned glyph);
@@ -342,7 +351,9 @@ Pgpt        pgdraw_chars(Pg *g, Pgfont *font, Pgpt p, const char *s, unsigned n)
 Pgpt        pgdraw_string(Pg *g, Pgfont *font, Pgpt p, const char *str);
 Pgpt        pgvprintf(Pg *g, Pgfont *font, Pgpt p, const char *str, va_list ap);
 Pgpt        pgprintf(Pg *g, Pgfont *font, Pgpt p, const char *str, ...);
-float       pgmeasure_glyph(Pgfont *font, unsigned glyph);
-float       pgmeasure_char(Pgfont *font, unsigned codepoint);
-float       pgmeasure_chars(Pgfont *font, const char *s, unsigned n);
-float       pgmeasure_string(Pgfont *font, const char *str);
+Pgpt        pgmeasure_glyph(Pgfont *font, unsigned glyph);
+Pgpt        pgmeasure_char(Pgfont *font, unsigned codepoint);
+Pgpt        pgmeasure_chars(Pgfont *font, const char *s, unsigned n);
+Pgpt        pgmeasure_string(Pgfont *font, const char *str);
+unsigned    pgfit_chars(Pgfont *font, const char *s, unsigned n, float width);
+unsigned    pgfit_string(Pgfont *font, const char *str, float width);
