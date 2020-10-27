@@ -2,20 +2,19 @@
 # 	-Wno-format-nonliteral -Wno-undef -Wno-comma -Wno-double-promotion\
 # 	-Wno-missing-variable-declarations -Wno-missing-prototypes\
 # 	-Wno-disabled-macro-expansion -Wno-shadow -Wno-float-equal\
-# 	-Wno-strict-prototypes -pedantic
-CFLAGS=-Wall -Wextra -Werror $(PEDANTIC) -O2 -g -I. -fno-caret-diagnostics
+# 	-Wno-strict-prototypes -pedantic -Wno-switch-enum
+CFLAGS=-Wall -Wextra -Werror $(PEDANTIC) -fpic -O2 -g -I. -fno-caret-diagnostics
 GUI=opengl
 PLATFORM=linux
 
 run-demo: demo
-	./demo
+	LD_LIBRARY_PATH=.:$(LD_LIBRARY_PATH) ./demo
 
-demo:	demo.c libpg.a
+demo:	demo.c libpg.so
 	$(CC) $(CFLAGS) -L. -odemo demo.c -lpg -lGLEW -lGL -lglfw -lm
 
-libpg.a: pg.c pg.h pgutil.h pg.opentype.c pg.$(GUI).c pg.$(PLATFORM).c
-	$(CC) $(CFLAGS) -c pg.c pg.opentype.c pg.$(GUI).c pg.$(PLATFORM).c
-	ar crs libpg.a pg.o pg.opentype.o pg.$(GUI).o pg.$(PLATFORM).o
+libpg.so: pg.h pg.internal.h pg.c pg.opentype.c pg.$(GUI).c pg.$(PLATFORM).c
+	$(CC) $(CFLAGS) -I. -olibpg.so -shared pg.c pg.opentype.c pg.$(GUI).c pg.$(PLATFORM).c  -lm -lGLEW -lGL
 
 clean:
-	rm *.o *.a demo
+	rm libpg.so demo

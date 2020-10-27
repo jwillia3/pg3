@@ -5,11 +5,9 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <pg.h>
-#include <pgutil.h>
 
 GLFWwindow  *win;
 Pg          *g;
-char        buffer[256];
 
 Pgpaint     bg;
 Pgpaint     accent;
@@ -23,7 +21,7 @@ static void update();
 static void resized(GLFWwindow *win, int width, int height) {
     (void) win;
     glViewport(0, 0, width, height);
-    pgresize(g, width, height);
+    pg_resize_canvas(g, (unsigned) width, (unsigned) height);
     update();
 }
 
@@ -45,11 +43,6 @@ key_callback(GLFWwindow *win, int key, int scancode, int action, int mods) {
             update();
         }
     }
-
-    if (action > 0 && (isalnum(key) || key == ' ')) {
-        strcat(buffer, (char[]){(char) key, 0});
-        update();
-    }
 }
 
 void openwindow(int width, int height, char *title) {
@@ -69,33 +62,33 @@ void openwindow(int width, int height, char *title) {
     glewInit();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    g = pgopengl_canvas(width, height);
+    g = pg_opengl_canvas((unsigned) width, (unsigned) height);
 }
 
 void fonts() {
     unsigned cols = 5;
     float   big = 18.0f * 96.0f / 72.0f;
     float   small = 14.0f * 96.0f / 72.0f;
-    float   colwid = pgwidth(g) / (float) cols;
+    float   colwid = pg_get_size(g).x / (float) cols;
 
 
     // Draw each block.
-    Pgpt     p = pgpt(0.0f, 0.0f);
+    Pgpt     p = pg_pt(0.0f, 0.0f);
     unsigned    c = 0;
     float       rowsize = 0.0f;
-    Pgfamily    *all = pglist_fonts();
+    Pgfamily    *all = pg_list_fonts();
     Pgfamily    *fam = all;
 
     for ( ; fam->name && fam != all + startfont * cols; fam++);
 
     for ( ; fam->name; fam++) {
 
-        if (p.y >= pgheight(g))
+        if (p.y >= pg_get_size(g).y)
             break;
 
         // Move to next line.
         if (c % cols == 0) {
-            p = pgpt(0.0f, p.y + rowsize);
+            p = pg_pt(0.0f, p.y + rowsize);
             rowsize = 0.0f;
             for (Pgfamily *f = fam, *end = f + cols; f != end && f->name; f++)
                 rowsize = fmaxf(rowsize, big + small * (float) f->nfaces);
@@ -103,40 +96,40 @@ void fonts() {
         }
 
         float top = p.y;
-        Pgfont *fbig = pgfind_font(fam->name, 900, false);
-        pgscale_font(fbig, big, 0.0f);
-        pgset_fill(g, accent);
-        pgdraw_string(g, fbig, p, fam->name);
-        pgfree_font(fbig);
-        pgfill(g);
+        Pgfont *fbig = pg_find_font(fam->name, 900, false);
+        pg_scale_font(fbig, big, 0.0f);
+        pg_set_fill(g, accent);
+        pg_string_path(g, fbig, p, fam->name);
+        pg_free_font(fbig);
+        pg_fill(g);
         p.y += big;
 
-        pgset_fill(g, fg);
+        pg_set_fill(g, fg);
         for (Pgface *fac = fam->faces; fac->family; fac++) {
-            Pgfont *fsmall = pgopen_font_file(fac->path, fac->index);
-            pgscale_font(fsmall, small, 0.0f);
-            pgdraw_string(g, fsmall, p, fac->style);
-            pgfree_font(fsmall);
+            Pgfont *fsmall = pg_open_font_file(fac->path, fac->index);
+            pg_scale_font(fsmall, small, 0.0f);
+            pg_string_path(g, fsmall, p, fac->style);
+            pg_free_font(fsmall);
             p.y += small;
         }
-        pgfill(g);
+        pg_fill(g);
 
-        p = pgpt(p.x + colwid, top);
+        p = pg_pt(p.x + colwid, top);
         c++;
     }
 }
 
 void allglyphs(Pgfont *font) {
-    unsigned n = (unsigned) pgfontpropi(font, PG_FONT_NGLYPHS);
-    float em = sqrtf(pgwidth(g) * pgheight(g) / (float) n);
-    em = sqrtf(pgwidth(g) * (pgheight(g) - em) / (float) n);
-    pgscale_font(font, em, em);
-    Pgpt     p = pgpt(0.0f, 0.0f);
+    unsigned n = (unsigned) pg_font_prop_int(font, PG_FONT_NGLYPHS);
+    float em = sqrtf(pg_get_size(g).x * pg_get_size(g).y / (float) n);
+    em = sqrtf(pg_get_size(g).x * (pg_get_size(g).y - em) / (float) n);
+    pg_scale_font(font, em, em);
+    Pgpt     p = pg_pt(0.0f, 0.0f);
     for (unsigned i = 0; i < n; i++) {
-        if (p.x + em >= pgwidth(g))
-            p = pgpt(0.0f, p.y + em);
-        pgdraw_glyph(g, font, p, i);
-        pgfill(g);
+        if (p.x + em >= pg_get_size(g).x)
+            p = pg_pt(0.0f, p.y + em);
+        pg_glyph_path(g, font, p, i);
+        pg_fill(g);
         p.x += em;
     }
 }
@@ -148,64 +141,46 @@ void star(Pgpt p, float size, float points) {
         float tf = 2.0f * 3.14159f * i / points - 3.14159f / 2.0f;
         float th = 2.0f * 3.14159f * (i + 0.5f) / points - 3.14159f / 2.0f;
         if (i == points)
-            pgclose(g);
+            pg_close_path(g);
         else {
             if (i == 0)
-                pgmove(g, pgaddpt(p, pgpt(cosf(tf) * f, sinf(tf) * f)));
+                pg_move_to_pt(g, pg_add_pts(p, pg_pt(cosf(tf) * f, sinf(tf) * f)));
             else
-                pgline(g, pgaddpt(p, pgpt(cosf(tf) * f, sinf(tf) * f)));
-            pgline(g, pgaddpt(p, pgpt(cosf(th) * h, sinf(th) * h)));
+                pg_line_to_pt(g, pg_add_pts(p, pg_pt(cosf(tf) * f, sinf(tf) * f)));
+            pg_line_to_pt(g, pg_add_pts(p, pg_pt(cosf(th) * h, sinf(th) * h)));
         }
     }
 }
 
 void flag() {
-    pgsave(g);
-    pgset_fill_color(g, (Pgcolor) {0.125f, 0.3f, 0.09f, 1.0f});
-    pgset_stroke_color(g, (Pgcolor) {0.125f, 0.3f, 0.65f, 1.0f});
-    pgset_line_width(g, 10.0f);
-    pgtranslatef(g, pgwidth(g) / 2.0f - 300.0f, pgheight(g) / 2.0f - 25.0f);
-    star(pgpt(000, 0), 50, 6);
-    star(pgpt(200, 0), 50, 6);
-    star(pgpt(400, 0), 50, 6);
-    star(pgpt(600, 0), 50, 6);
-    pgfillstroke(g);
-    pgrestore(g);
-}
-
-void typing() {
-    float fontsz = 14.0f * 96.0f / 72.0f;
-
-    Pgfont *font = pgfind_font("Arial", 300, 0);
-    pgscale_font(font, fontsz, 0.0f);
-    for (float y = 10; y < pgheight(g); y += fontsz) {
-        pgdraw_string(g, font, pgpt(10, y), buffer);
-        pgfill(g);
-    }
-    pgfree_font(font);
+    pg_save(g);
+    pg_set_fill(g, pg_solid(PG_LCHAB, 0.125f, 0.3f, 0.09f, 1.0f));
+    pg_set_stroke(g, pg_solid(PG_LCHAB, 0.125f, 0.3f, 0.65f, 1.0f));
+    pg_set_line_width(g, 10.0f);
+    pg_ctm_translate(g, pg_get_size(g).x / 2.0f - 300.0f, pg_get_size(g).y / 2.0f - 25.0f);
+    star(pg_pt(000, 0), 50, 6);
+    star(pg_pt(200, 0), 50, 6);
+    star(pg_pt(400, 0), 50, 6);
+    star(pg_pt(600, 0), 50, 6);
+    pg_fill_stroke(g);
+    pg_restore(g);
 }
 
 static void update() {
-    pgset_default_colorspace(PG_LCHAB);
-    bg = pglinearf(0.0f, 0.0f, pgwidth(g), pgheight(g));
-    pgadd_stop(&bg, 0.0f, (Pgcolor) {1.0f, 0.125f, 0.25f, 1.0f});
-    pgadd_stop(&bg, 1.0f, (Pgcolor) {0.7f, 0.125f, 0.25f, 1.0f});
-    accent = pgsolidf(0.0f, 0.5f, 0.65f, 1.0f);
-    fg = pgsolidf(0.1f, 0.0f, 0.0f, 1.0f);
 
-    pgident(g);
-    pgclear(g, bg);
+    bg = pg_linear(PG_LCHAB, 0.0f, 0.0f, 0.0f, pg_get_size(g).y);
+    pg_add_stop(&bg, 0.0f, 0.6f, 0.125f, 0.275f, 1.0f);
+    pg_add_stop(&bg, 1.0f, 0.9f, 0.125f, 0.275f, 1.0f);
+    accent = pg_solid(PG_LCHAB, 0.0f, 0.5f, 0.65f, 1.0f);
+    fg = pg_solid(PG_LCHAB, 0.1f, 0.0f, 0.0f, 1.0f);
+
+    pg_ctm_identity(g);
+    pg_clear(g, bg);
 
     // typing();
     // flag();
-    // allglyphs(pgfind_font("Arial Nova", 0, 0));
+    // allglyphs(pg_find_font("URW Bookman", 300, 0));
     fonts();
-
-    // Pgpaint grad = pglinearf(0.0f, 0.0f, pgwidth(g), 0.0f);
-    // pgadd_stop(&grad, 0.0f, (Pgcolor){0.125f, 0.5f, 0.0f, 1.0f});
-    // pgadd_stop(&grad, 1.0f, (Pgcolor){0.125f, 0.5f, 1.0f, 1.0f});
-    // pgset_fill(g, grad);
-    // pgclear(g, grad);
 
     glfwSwapBuffers(win);
 }

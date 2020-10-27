@@ -1,7 +1,15 @@
+#define new(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
+
+
+
+/*
+    Platform Dependent.
+*/
 void *_pgmap_file(const char *path, size_t *sizep);
 void _pgunmap_file(void *ptr, size_t size);
-Pgfont *_pgopen_opentype_font(const uint8_t *data, size_t size, unsigned index);
+
 unsigned _pgget_font_dirs(char *dirs[256]);
+
 
 
 /*
@@ -27,9 +35,9 @@ flatten3(Pgpt *out, Pgpt a, Pgpt b, Pgpt c, float flatness, int lim) {
         *out = c;
         return 1;
     } else {
-        Pgpt ab = pgmid(a, b);
-        Pgpt bc = pgmid(b, c);
-        Pgpt abc = pgmid(ab, bc);
+        Pgpt ab = pg_mid_pt(a, b);
+        Pgpt bc = pg_mid_pt(b, c);
+        Pgpt abc = pg_mid_pt(ab, bc);
         unsigned n = flatten3(out, a, ab, abc, flatness, lim - 1);
         return n + flatten3(out + n, abc, bc, c, flatness, lim - 1);
     }
@@ -40,12 +48,12 @@ flatten4(Pgpt *out, Pgpt a, Pgpt b, Pgpt c, Pgpt d, float flatness, int lim) {
         *out = d;
         return 1;
     } else {
-        Pgpt ab = pgmid(a, b);
-        Pgpt bc = pgmid(b, c);
-        Pgpt cd = pgmid(c, d);
-        Pgpt abc = pgmid(ab, bc);
-        Pgpt bcd = pgmid(bc, cd);
-        Pgpt abcd = pgmid(abc, bcd);
+        Pgpt ab = pg_mid_pt(a, b);
+        Pgpt bc = pg_mid_pt(b, c);
+        Pgpt cd = pg_mid_pt(c, d);
+        Pgpt abc = pg_mid_pt(ab, bc);
+        Pgpt bcd = pg_mid_pt(bc, cd);
+        Pgpt abcd = pg_mid_pt(abc, bcd);
         unsigned n = flatten4(out, a, ab, abc, abcd, flatness, lim - 1);
         return n + flatten4(out + n, abcd, bcd, cd, d, flatness, lim - 1);
     }
