@@ -209,6 +209,7 @@ static void set_paint(Pg *g, Pgpaint paint) {
 
 static void *_init(Pg *g) {
     (void) g;
+    glewInit();
     GLuint  vsh = make_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
     GLuint  fsh = make_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
     GLuint  prog = make_program(vsh, fsh);
