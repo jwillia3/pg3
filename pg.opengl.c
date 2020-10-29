@@ -232,7 +232,8 @@ static void _clear(Pg *g, Pgpaint paint) {
         Pgcolor c = pg_convert_color(paint.cspace, paint.colours[0]);
         glClearColor(c.x, c.y, c.z, c.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    } else {
+    }
+    else {
         GL      *gl = pg_get_canvas_impl(g);
         Pgpt    sz = pg_get_size(g);
 
@@ -363,7 +364,8 @@ static void _fill(Pg *g) {
             int     n = SUB(subs[i + 1]) - SUB(subs[i]);
             glDrawArrays(GL_TRIANGLE_FAN, start, n);
         }
-    } else {
+    }
+    else {
         glEnable(GL_CULL_FACE);
         for (unsigned i = 0; i < nsubs; i++) {
             unsigned    start = SUB(subs[i]);
@@ -524,7 +526,8 @@ static void _stroke(Pg *g) {
                             verts[end - 2], verts[end - 1],
                             verts[start], verts[start + 1],
                             final, nfinal);
-        } else if (end - start <= 2) {
+        }
+        else if (end - start <= 2) {
             if (end - start == 2) {
                 Pgpt nv = pg_normalize(pg_sub_pts(verts[1], verts[0]));
                 Pgpt wv = pg_mul_pts(perp(nv), w);
@@ -536,7 +539,8 @@ static void _stroke(Pg *g) {
                 final[nfinal++] = a, final[nfinal++] = b, final[nfinal++] = c;
                 final[nfinal++] = b, final[nfinal++] = c, final[nfinal++] = d;
             }
-        } else {
+        }
+        else {
             nfinal = startcap(w, cap,
                                 verts[start], verts[start + 1],
                                 verts[start + 2], final, nfinal);

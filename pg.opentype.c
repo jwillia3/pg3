@@ -90,6 +90,7 @@ typedef struct {
     unsigned        fontindex;
     unsigned        nfonts;
     bool            fixed;
+    bool            italic;
     float           angle;
 
     char            prop_buf[256];
@@ -211,16 +212,19 @@ nextdict(section cursect, size_t *p, cffoperand *stack, unsigned *ss) {
                 FAIL("CFF_DICT_STACK_OVERFLOW_REAL");
             (*p)++;
             stack[(*ss)++].f = cffreal(cursect, p);
-        } else if (o >= 28 && o != 255) {   // Integer operand.
+        }
+        else if (o >= 28 && o != 255) {   // Integer operand.
             if (*ss >= 48)
                 FAIL("CFF_DICT_STACK_OVERFLOW_INT");
             stack[(*ss)++].i = cffint(cursect, p);
-        } else if (o == 12) {               // Two-byte operator.
+        }
+        else if (o == 12) {               // Two-byte operator.
             BC(*p, 2, "TWO_BYTE_OP");
             o = 0x0c00 + PB(*p + 1);
             *p += 2;
             return (int) o;
-        } else {
+        }
+        else {
             (*p)++;
             return (int) o;
         }
@@ -287,7 +291,8 @@ static bool loadcmap4(uint16_t charmap[65536], section cursect) {
             BC(p, (e - s) * 2, "CMAP_FORMAT4_OFFSET");
             for (unsigned c = s; c <= e; c++, p += 2)
                 charmap[c] = (uint16_t) (PW(p)? PW(p) + d: 0);
-        } else
+        }
+        else
             for (unsigned c = s; c <= e; c++)
                 charmap[c] = (uint16_t) (c + (unsigned) d);
     }
@@ -425,15 +430,18 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
                     pg_move_to_pt(g, p);
                     home = p;
                     curving = false;
-                } else if (anchor && curving) {         // Curve-to-line
+                }
+                else if (anchor && curving) {           // Curve-to-line
                     pg_curve3_to_pt(g, oldp, p);
                     curving = false;
-                } else if (anchor)                      // Line-to-line
+                }
+                else if (anchor)                        // Line-to-line
                     pg_line_to_pt(g, p);
                 else if (curving) {                     // Line-to-curve
                     Pgpt m = pg_mid_pt(oldp, p);
                     pg_curve3_to_pt(g, oldp, m);
-                } else                                  // Curve-to-curve
+                }
+                else                                    // Curve-to-curve
                     curving = true;
             }
         }
@@ -463,12 +471,14 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
                 // "Matching points" not supported.
                 DBGMSG("GLYF_COMPOSITE_MATCH_POINT");
                 p += flags & 1? 4: 2;
-            } else if (flags & 1) {
+            }
+            else if (flags & 1) {
                 BC(p, 4, "GLYF_COMPOSITE_WORD_XLATE");
                 tm.e = (int16_t) PW(p);
                 tm.f = (int16_t) PW(p + 2);
                 p += 4;
-            } else {
+            }
+            else {
                 BC(p, 2, "GLYF_COMPOSITE_BYTE_XLATE");
                 tm.e = (int8_t) PB(p);
                 tm.f = (int8_t) PB(p + 1);
@@ -933,6 +943,7 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
     // HEAD
     cursect = head;
     float   units;
+    bool    italic;
     bool    longloca;
     {
         if (cursect.size != 54)     FAIL("HEAD_TBL_SIZE");
@@ -941,6 +952,7 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
         if (PW(52) != 0)            FAIL("GLYF_DATA_FORMAT");
 
         units = PW(18);
+        italic = PW(44) & 2;
         longloca = PW(50);
     }
 
@@ -961,7 +973,8 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
         if (cffver) {
             if (PD(0) != 0x5000)    FAIL("MAXP_TBL_CFF");
             if (cursect.size != 6)  FAIL("MAXP_TBL_SIZE");
-        } else {
+        }
+        else {
             if (PD(0) != 0x10000)   FAIL("MAXP_TBL_VER");
             if (cursect.size != 32) FAIL("MAXP_TBL_SIZE");
         }
@@ -1144,7 +1157,8 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
         .fontindex = index,
         .nfonts = nfonts,
         .angle = angle,
-        .fixed = fixed);
+        .fixed = fixed,
+        .italic = italic);
 
 fail:
     return 0;
@@ -1162,6 +1176,7 @@ static float _propf(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_INDEX:         return (float) OTF(font)->fontindex;
     case PG_FONT_NFONTS:        return (float) OTF(font)->nfonts;
     case PG_FONT_FIXED:         return (float) OTF(font)->fixed;
+    case PG_FONT_ITALIC:        return (float) OTF(font)->italic;
     case PG_FONT_FAMILY:        return 0.0f;
     case PG_FONT_STYLE:         return 0.0f;
     case PG_FONT_FULL_NAME:     return 0.0f;
@@ -1202,8 +1217,12 @@ static const char *_props(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_FULL_NAME:     return  getname(font, 4, buf)? buf:
                                         getname(font, 3, buf)? buf:
                                         "";
-    case PG_FONT_FIXED:         return pg_font_prop_int(font, id)? "Fixed Pitched":
+    case PG_FONT_FIXED:         return pg_font_prop_int(font, id)
+                                        ? "Fixed Pitched":
                                         "Proportional";
+    case PG_FONT_ITALIC:        return pg_font_prop_int(font, id)
+                                        ? "Italic":
+                                        "Roman";
     case PG_FONT_WEIGHT:
         return weights[TW(os2, 4) < 1000? TW(os2, 4) / 100: 0];
     case PG_FONT_WIDTH_CLASS:

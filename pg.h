@@ -24,7 +24,7 @@ typedef enum {
     PG_PART_CURVE3,
     PG_PART_CURVE4,
     PG_PART_CLOSE,
-} Pgform;
+} Pgpart_form;
 
 typedef enum {
     PG_SOLID_PAINT,
@@ -63,6 +63,7 @@ typedef enum {
     PG_FONT_STYLE,          // Self-described style. (e.g. "Bold", "Oblique")
     PG_FONT_FULL_NAME,      // Self-described full name with family and style.
     PG_FONT_FIXED,          // 1=Fixed-Pitched (monospaced); 0=Proportional
+    PG_FONT_ITALIC,         // 1=Italic (or slanted); 0=Regular
     PG_FONT_WEIGHT,         // Weight of font: 0-999. 400=Regular 700=Bold
     PG_FONT_WIDTH_CLASS,    // Width class: 0-9. 5=Normal
     PG_FONT_ANGLE,          // Angle of italics.
@@ -94,10 +95,12 @@ struct Pgmat { float a, b, c, d, e, f; };
 struct Pgpath {
     unsigned    nparts;
     Pgpart      *parts;
+    Pgpt        min;
+    Pgpt        max;
 };
 
 struct Pgpart {
-    Pgform      form;
+    Pgpart_form form;
     Pgpt        pt[3];
 };
 
@@ -127,7 +130,7 @@ struct Pgface {
     unsigned    width;
     unsigned    weight;
     bool        fixed;
-    bool        sloped;
+    bool        italic;
     char        panose[10];
 };
 
@@ -167,6 +170,7 @@ void pg_free_canvas(Pg *g);
 Pg  *pg_resize_canvas(Pg *g, unsigned width, unsigned height);
 Pgpt pg_get_size(Pg *g);
 Pgpath pg_get_path(Pg *g);
+Pgrect pg_get_bbox(Pg *g);
 
 void *pg_get_canvas_impl(const Pg *g);
 Pg *pg_new_canvas(const Pgcanvas_methods *v, unsigned width, unsigned height);
@@ -217,6 +221,7 @@ Pg *pg_ctm_rotate(Pg *g, float rads);
 Pgpaint pg_solid_color(Pgcolorspace cspace, Pgcolor colour);
 Pgpaint pg_solid(Pgcolorspace cspace, float x, float y, float z, float a);
 Pgpaint pg_linear_pt(Pgcolorspace cspace, Pgpt a, Pgpt b);
+Pgpaint pg_linear_rect(Pgcolorspace cspace, Pgrect r);
 Pgpaint pg_linear(Pgcolorspace cspace, float ax, float ay, float bx, float by);
 Pgpaint *pg_add_stop_color(Pgpaint *paint, float t, Pgcolor colour);
 Pgpaint *pg_add_stop(Pgpaint *paint, float t, float x, float y, float z, float a);
@@ -254,7 +259,7 @@ Pg *pg_set_text_pos(Pg *g, Pgtext_pos pos);
 
 // Font.
 Pgfamily *pg_list_fonts();
-Pgfont *pg_find_font(const char *family, unsigned weight, bool sloped);
+Pgfont *pg_find_font(const char *family, unsigned weight, bool italic);
 void pg_free_font(Pgfont *font);
 Pgfont *pg_scale_font(Pgfont *font, float sx, float sy);
 
@@ -318,6 +323,8 @@ static inline Pgrect pg_empty_rect();
 static inline Pgrect pg_rect_pt(Pgpt p, Pgpt size);
 static inline Pgrect pg_rect(float x, float y, float sx, float sy);
 static inline Pgrect pg_rect_abs(float ax, float ay, float bx, float by);
+static inline Pgrect pg_rect_abs_pt(Pgpt a, Pgpt b);
+static inline Pgpt pg_rect_end(Pgrect r);
 static inline bool pg_pt_in_rect(Pgrect r, Pgpt p);
 static inline Pgpt pg_add_pts(Pgpt a, Pgpt b);
 static inline Pgpt pg_sub_pts(Pgpt a, Pgpt b);
@@ -364,6 +371,14 @@ static inline Pgrect pg_rect(float x, float y, float sx, float sy) {
 
 static inline Pgrect pg_rect_abs(float ax, float ay, float bx, float by) {
     return (Pgrect) { {ax, ay}, {bx - ax, by - ay} };
+}
+
+static inline Pgrect pg_rect_abs_pt(Pgpt a, Pgpt b) {
+    return (Pgrect) { {a.x, a.y}, {b.x - a.x, b.y - a.y} };
+}
+
+static inline Pgpt pg_rect_end(Pgrect r) {
+    return pg_add_pts(r.p, r.size);
 }
 
 static inline bool pg_pt_in_rect(Pgrect r, Pgpt p) {

@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <dirent.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +75,7 @@ Pg *pg_new_canvas(const Pgcanvas_methods *v, unsigned width, unsigned height) {
         .v = v,
         .width = (float) width,
         .height = (float) height,
-        .path = {0, 0},
+        .path = {0, 0, {FLT_MAX, FLT_MAX}, {FLT_MIN, FLT_MIN}},
         .s = {
             .ctm = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f},
             .fill = {
@@ -131,7 +132,12 @@ Pgpt pg_get_size(Pg *g) {
 }
 
 Pgpath pg_get_path(Pg *g) {
-    return g? g->path: (Pgpath) {0, 0};
+    return g? g->path: (Pgpath) {0, 0, {FLT_MAX, FLT_MAX}, {FLT_MIN, FLT_MIN}};
+}
+
+Pgrect pg_get_bbox(Pg *g) {
+    return g? pg_rect_abs_pt(g->path.min, g->path.max):
+        pg_rect(FLT_MAX, FLT_MAX, FLT_MIN, FLT_MIN);
 }
 
 Pgpaint pg_solid_color(Pgcolorspace cspace, Pgcolor colour) {
@@ -157,6 +163,10 @@ Pgpaint pg_linear_pt(Pgcolorspace cspace, Pgpt a, Pgpt b) {
         .a = a,
         .b = b,
     };
+}
+
+Pgpaint pg_linear_rect(Pgcolorspace cspace, Pgrect r) {
+    return pg_linear_pt(cspace, r.p, pg_add_pts(r.p, r.size));
 }
 
 Pgpaint pg_linear(Pgcolorspace cspace, float ax, float ay, float bx, float by) {
@@ -315,8 +325,19 @@ static size_t path_capacity(size_t n) {
     return (n + 31UL) & ~31UL;
 }
 
-static Pgform prev_part(Pgpath path) {
+static Pgpart_form prev_part(Pgpath path) {
     return path.nparts? path.parts[path.nparts - 1].form: PG_PART_CLOSE;
+}
+
+static unsigned part_count(Pgpart_form form) {
+    switch (form) {
+    case PG_PART_MOVE:      return 1;
+    case PG_PART_LINE:      return 1;
+    case PG_PART_CURVE3:    return 2;
+    case PG_PART_CURVE4:    return 3;
+    case PG_PART_CLOSE:     return 0;
+    }
+    return 0;
 }
 
 static void add_pt(Pgpath *path, Pgpart part) {
@@ -324,7 +345,15 @@ static void add_pt(Pgpath *path, Pgpart part) {
         size_t cap = path_capacity(path->nparts + 1);
         path->parts = realloc(path->parts, cap * sizeof *path->parts);
     }
+
     path->parts[path->nparts++] = part;
+
+    for (unsigned i = 0; i < part_count(part.form); i++) {
+        path->min.x = fminf(path->min.x, part.pt[i].x);
+        path->min.y = fminf(path->min.y, part.pt[i].y);
+        path->max.x = fmaxf(path->max.x, part.pt[i].x);
+        path->max.y = fmaxf(path->max.y, part.pt[i].y);
+    }
 }
 
 Pgpt pg_cur(Pg *g) {
@@ -425,8 +454,11 @@ Pg *pg_close_path(Pg *g) {
 }
 
 Pg *pg_clear_path(Pg *g) {
-    if (g)
+    if (g) {
+        g->path.min = pg_pt(FLT_MAX, FLT_MAX);
+        g->path.max = pg_pt(FLT_MIN, FLT_MIN);
         g->path.nparts = 0;
+    }
     return g;
 }
 
@@ -446,7 +478,7 @@ Pg *pg_rect_path_abs(Pg *g, float ax, float ay, float bx, float by) {
 }
 
 Pg *pg_rect_path_pt(Pg *g, Pgrect r) {
-    return pg_rect_path_abs(g, r.p.x, r.p.y, r.size.x, r.size.y);
+    return pg_rect_path(g, r.p.x, r.p.y, r.size.x, r.size.y);
 }
 
 Pg *pg_rrect_path(Pg *g, float x, float y, float sx, float sy, float rad) {
@@ -454,14 +486,14 @@ Pg *pg_rrect_path(Pg *g, float x, float y, float sx, float sy, float rad) {
         float   rx = fminf(sx, rad);
         float   ry = fminf(sy, rad);
 
-        pg_move_to(g,       x + sx - rx,y);
-        pg_rel_curve3_to(g, rx,         0.0f,       0.0f,   ry);
-        pg_rel_line_to(g,   0.0f,       sy - ry);
-        pg_rel_curve3_to(g, 0.0f,       ry,         -rx,    0.0f);
-        pg_rel_line_to(g,   -(sx - rx), 0.0f);
-        pg_rel_curve3_to(g, -rx,        0.0f,       0.0f,   -ry);
-        pg_rel_line_to(g,   0.0f,       -(sy - ry));
-        pg_rel_curve3_to(g, 0.0f,       -ry,        rx,     0.0f);
+        pg_move_to(g,       x + sx - rx,    y);
+        pg_rel_curve3_to(g, rx,             0.0f,       0.0f,   ry);
+        pg_rel_line_to(g,   0.0f,           sy - ry - ry);
+        pg_rel_curve3_to(g, 0.0f,           ry,         -rx,    0.0f);
+        pg_rel_line_to(g,   -(sx - rx - rx), 0.0f);
+        pg_rel_curve3_to(g, -rx,            0.0f,       0.0f,   -ry);
+        pg_rel_line_to(g,   0.0f,           -(sy - ry - ry));
+        pg_rel_curve3_to(g, 0.0f,           -ry,        rx,     0.0f);
         pg_close_path(g);
     }
     return g;
@@ -472,7 +504,7 @@ Pg *pg_rrect_path_abs(Pg *g, float ax, float ay, float bx, float by, float rad) 
 }
 
 Pg *pg_rrect_path_pt(Pg *g, Pgrect r, float rad) {
-    return pg_rrect_path_abs(g, r.p.x, r.p.x, r.size.x, r.size.y, rad);
+    return pg_rrect_path(g, r.p.x, r.p.y, r.size.x, r.size.y, rad);
 }
 
 Pg *pg_ctm_identity(Pg *g) {
@@ -555,7 +587,7 @@ static int compare_face(const void *ap, const void *bp) {
     return (r = stricmp(a->family, b->family))? r:
            a->width != b->width?    (int) a->width - (int) b->width:
            a->weight != b->weight?  (int) a->weight - (int) b->weight:
-           a->sloped != b->sloped?  (int) a->sloped - (int) b->sloped:
+           a->italic != b->italic?  (int) a->italic - (int) b->italic:
            (r = stricmp(a->style, b->style))? r:
            0;
 }
@@ -623,7 +655,7 @@ Pgfamily *pg_list_fonts() {
             f.width = (unsigned) pg_font_prop_int(font, PG_FONT_WIDTH_CLASS);
             f.weight = (unsigned) pg_font_prop_int(font, PG_FONT_WEIGHT);
             f.fixed = (unsigned) pg_font_prop_int(font, PG_FONT_FIXED);
-            f.sloped = pg_font_prop_float(font, PG_FONT_ANGLE) != 0.0f;
+            f.italic = pg_font_prop_int(font, PG_FONT_ITALIC);
             strcpy(f.panose, pg_font_prop_string(font, PG_FONT_PANOSE));
             pg_free_font(font);
 
@@ -667,7 +699,7 @@ Pgfamily *pg_list_fonts() {
     return families;
 }
 
-Pgfont *pg_find_font(const char *family, unsigned weight, bool sloped) {
+Pgfont *pg_find_font(const char *family, unsigned weight, bool italic) {
     if (!family)
         return 0;
 
@@ -687,10 +719,10 @@ Pgfont *pg_find_font(const char *family, unsigned weight, bool sloped) {
     int     bestscore = -1000;
 
     for (Pgface *fac = fam->faces; fac->family; fac++) {
-        int score = 0 +
+        int score =
             -abs((int) 5 - (int) fac->width)             * 10
             -abs((int) weight - (int) fac->weight) / 100 * 3
-            -abs((int) sloped - (int) fac->sloped)       * 2
+            -abs((int) italic - (int) fac->italic)       * 2
             + 0;
 
         if (score > bestscore) {
@@ -920,7 +952,7 @@ unsigned pg_fit_chars(Pgfont *font, const char *s, unsigned n, float width) {
         float       vw = 0.0f;
         unsigned    nfit = 0;
         const uint8_t *end = (uint8_t*) s + n;
-        for (const uint8_t *i = (uint8_t*) s; i < end; nfit++)
+        for (const uint8_t *i = (uint8_t*) s; i < end && vw < width; nfit++)
             vw += pg_measure_char(font, pg_read_utf8(&i)).x;
         return nfit - (vw > width? 1: 0);
     }

@@ -69,16 +69,16 @@ struct Pgpath {
     Pgpart      *parts;
 };
 
-typedef enum Pgform {
+typedef enum Pgpart_form {
     PG_PART_MOVE,
     PG_PART_LINE,
     PG_PART_CURVE3,
     PG_PART_CURVE4,
     PG_PART_CLOSE,
-} Pgform;
+} Pgpart_form;
 
 struct Pgpart {
-    Pgform      form;
+    Pgpart_form form;
     Pgpt        pt[3];
 };
 ```
