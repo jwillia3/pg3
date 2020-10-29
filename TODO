@@ -15,6 +15,7 @@
   - OpenType Windows/Symbol CMAP
   - Unicode glyphs outside of BMP
   - SVG Fonts
+  - Underline respecting descenders
 - Optimisation
   - Find a tighter bound on number of vertexes in OpenGL flattening
   - Share flattened vertexes in OpenGL `_strokefill()`

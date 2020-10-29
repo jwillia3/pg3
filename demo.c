@@ -96,21 +96,28 @@ void fonts() {
         }
 
         float top = p.y;
+
         Pgfont *fbig = pg_find_font(fam->name, 900, false);
         pg_scale_font(fbig, big, 0.0f);
-        pg_set_fill(g, accent);
+
+        pg_set_underline(g, true);
         pg_string_path(g, fbig, p, fam->name);
-        pg_free_font(fbig);
+        pg_set_underline(g, false);
+        pg_set_fill(g, accent);
         pg_fill(g);
+
+        pg_free_font(fbig);
         p.y += big;
 
         pg_set_fill(g, fg);
         for (Pgface *fac = fam->faces; fac->family; fac++) {
             Pgfont *fsmall = pg_open_font_file(fac->path, fac->index);
             pg_scale_font(fsmall, small, 0.0f);
+
             pg_string_path(g, fsmall, p, fac->style);
-            pg_free_font(fsmall);
             p.y += small;
+
+            pg_free_font(fsmall);
         }
         pg_fill(g);
 

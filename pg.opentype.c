@@ -1263,6 +1263,32 @@ static const char *_props(Pgfont *font, Pgfont_prop id) {
 }
 
 static void _glyph_path(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
+
+    float adjust = 0.0f;
+
+    switch (pg_get_text_pos(g)) {
+
+    case PG_TEXT_POS_TOP:
+        adjust = pg_font_prop_float(font, PG_FONT_ASCENDER);
+        break;
+
+    case PG_TEXT_POS_BOTTOM:
+        adjust = pg_font_prop_float(font, PG_FONT_DESCENDER);
+        break;
+
+    case PG_TEXT_POS_BASELINE:
+        adjust = 0.0f;
+        break;
+
+    case PG_TEXT_POS_CENTER:
+        adjust = (pg_font_prop_float(font, PG_FONT_ASCENDER) +
+                pg_font_prop_float(font, PG_FONT_DESCENDER)) * 0.5f;
+        break;
+    }
+
+    at = pg_add_pt(at, 0.0f, adjust);
+
+
     Pgpt   s = pg_get_font_scale(font);
 
     if (s.x != 0.0f && s.y != 0.0f) {
@@ -1273,6 +1299,30 @@ static void _glyph_path(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
 
         else if (OTF(font)->cffver == 1)
             cffoutline(g, font, ctm, glyph);
+
+        if (pg_get_underline(g)) {
+            float   d = pg_font_prop_float(font, PG_FONT_DESCENDER);
+            float   w = pg_measure_glyph(font, glyph).x;
+            float   y = at.y - d * 0.75f;
+            float   t = d * (pg_font_prop_float(font, PG_FONT_WEIGHT) / 2000.0f);
+
+            // CFF and TTF tend to have opposite windings.
+            if (OTF(font)->cffver == 0) {
+                pg_move_to(g, at.x, y + t);
+                pg_rel_line_to(g, w, 0.0f);
+                pg_rel_line_to(g, 0.0f, -t);
+                pg_rel_line_to(g, -w, 0.0f);
+                pg_close_path(g);
+            }
+            else {
+                pg_move_to(g, at.x, y);
+                pg_rel_line_to(g, w, 0.0f);
+                pg_rel_line_to(g, 0.0f, t);
+                pg_rel_line_to(g, -w, 0.0f);
+                pg_close_path(g);
+            }
+        }
+
     }
 }
 

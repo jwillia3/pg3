@@ -22,6 +22,7 @@ struct Pgstate {
     Pgfill_rule rule;
     Pgrect      clip;
     Pgtext_pos  text_pos;
+    bool        underline;
 };
 
 struct Pg {
@@ -221,24 +222,30 @@ Pgmat pg_get_ctm(const Pg *g) {
     return g? g->s.ctm: pg_ident_mat();
 }
 
-Pg *pg_set_clip(Pg *g, float x, float y, float sx, float sy) {
+Pgrect pg_set_clip(Pg *g, float x, float y, float sx, float sy) {
     return pg_set_clip_rect(g, pg_rect(x, y, sx, sy));
 }
 
-Pg *pg_set_clip_abs(Pg *g, float ax, float ay, float bx, float by) {
+Pgrect pg_set_clip_abs(Pg *g, float ax, float ay, float bx, float by) {
     return pg_set_clip_rect(g, pg_rect_abs(ax, ay, bx, by));
 }
 
-Pg *pg_set_clip_rect(Pg *g, Pgrect clip) {
-    if (g)
+Pgrect pg_set_clip_rect(Pg *g, Pgrect clip) {
+    if (g) {
+        Pgrect old = g->s.clip;
         g->s.clip = clip;
-    return g;
+        return old;
+    }
+    return pg_empty_rect();
 }
 
-Pg *pg_set_ctm(Pg *g, Pgmat ctm) {
-    if (g)
+Pgmat pg_set_ctm(Pg *g, Pgmat ctm) {
+    if (g) {
+        Pgmat old = g->s.ctm;
         g->s.ctm = ctm;
-    return g;
+        return old;
+    }
+    return pg_ident_mat();
 }
 
 Pgpaint pg_get_fill(const Pg *g) {
@@ -249,76 +256,112 @@ Pgtext_pos pg_get_text_pos(const Pg *g) {
     return g? g->s.text_pos: PG_TEXT_POS_TOP;
 }
 
-Pg *pg_set_fill(Pg *g, Pgpaint paint) {
-    if (g)
+bool pg_get_underline(const Pg *g) {
+    return g? g->s.underline: false;
+}
+
+Pgpaint pg_set_fill(Pg *g, Pgpaint paint) {
+    if (g) {
+        Pgpaint old = g->s.fill;
         g->s.fill = paint;
-    return g;
+        return old;
+    }
+    return pg_solid(PG_SRGB, 0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 Pgpaint pg_get_stroke(const Pg *g) {
     return g? g->s.stroke: (Pgpaint) {0};
 }
 
-Pg *pg_set_stroke(Pg *g, Pgpaint paint) {
-    if (g)
+Pgpaint pg_set_stroke(Pg *g, Pgpaint paint) {
+    if (g) {
+        Pgpaint old = g->s.stroke;
         g->s.stroke = paint;
-    return g;
+        return old;
+    }
+    return pg_solid(PG_SRGB, 0.0f, 0.0f, 0.0f, 1.0f);
 }
 
 float pg_get_line_width(const Pg *g) {
     return g? g->s.line_width: 1.0f;
 }
 
-Pg *pg_set_line_width(Pg *g, float line_width) {
-    if (g && line_width > 0.0f)
-        g->s.line_width = line_width;
-    return g;
+float pg_set_line_width(Pg *g, float line_width) {
+    if (g) {
+        float old = g->s.line_width;
+        if (line_width > 0.0f)
+            g->s.line_width = line_width;
+        return old;
+    }
+    return 1.0f;
 }
 
 Pgline_cap pg_get_line_cap(const Pg *g) {
     return g? g->s.line_cap: PG_BUTT_CAP;
 }
 
-Pg *pg_set_line_cap(Pg *g, Pgline_cap line_cap) {
-    if (g && (line_cap == PG_BUTT_CAP || line_cap == PG_SQUARE_CAP))
-        g->s.line_cap = line_cap;
-    return g;
+Pgline_cap pg_set_line_cap(Pg *g, Pgline_cap line_cap) {
+    if (g) {
+        Pgline_cap old = g->s.line_cap;
+        if (line_cap == PG_BUTT_CAP || line_cap == PG_SQUARE_CAP)
+            g->s.line_cap = line_cap;
+        return old;
+    }
+    return PG_BUTT_CAP;
 }
 
 float pg_get_flatness(const Pg *g) {
     return g? g->s.flatness: 1.0f;
 }
 
-Pg *pg_set_flatness(Pg *g, float flatness) {
-    if (g && flatness >= 0.0f && flatness <= 100.0f)
-        g->s.flatness = flatness;
-    return g;
+float pg_set_flatness(Pg *g, float flatness) {
+    if (g) {
+        float old = g->s.flatness;
+        if (flatness >= 0.0f && flatness <= 100.0f)
+            g->s.flatness = flatness;
+        return old;
+    }
+    return 1.0f;
 }
 
 Pgfill_rule pg_get_fill_rule(const Pg *g) {
     return g? g->s.rule: PG_NONZERO_RULE;
 }
 
-Pg *pg_set_fill_rule(Pg *g, Pgfill_rule rule) {
-    if (g && (rule == PG_NONZERO_RULE || rule == PG_EVEN_ODD_RULE))
-        g->s.rule = rule;
-    return g;
+Pgfill_rule pg_set_fill_rule(Pg *g, Pgfill_rule rule) {
+    if (g) {
+        Pgfill_rule old = g->s.rule;
+        if (rule == PG_NONZERO_RULE || rule == PG_EVEN_ODD_RULE)
+            g->s.rule = rule;
+        return old;
+    }
+    return PG_NONZERO_RULE;
 }
 
-Pg *pg_set_text_pos(Pg *g, Pgtext_pos pos) {
-    bool valid = false;
+Pgtext_pos pg_set_text_pos(Pg *g, Pgtext_pos pos) {
+    if (g) {
+        Pgtext_pos old = g->s.text_pos;
 
-    switch (pos) {
-    case PG_TEXT_POS_TOP:
-    case PG_TEXT_POS_BOTTOM:
-    case PG_TEXT_POS_BASELINE:
-    case PG_TEXT_POS_CENTER:
-        valid = true;
+        switch (pos) {
+        case PG_TEXT_POS_TOP:
+        case PG_TEXT_POS_BOTTOM:
+        case PG_TEXT_POS_BASELINE:
+        case PG_TEXT_POS_CENTER:
+            g->s.text_pos = pos;
+        }
+
+        return old;
     }
+    return PG_TEXT_POS_TOP;
+}
 
-    if (g && valid)
-        g->s.text_pos = pos;
-    return g;
+bool pg_set_underline(Pg *g, bool underline) {
+    if (g) {
+        bool old = g->s.underline;
+        g->s.underline = underline;
+        return old;
+    }
+    return false;
 }
 
 static size_t path_capacity(size_t n) {
@@ -845,30 +888,8 @@ unsigned pg_get_glyph(Pgfont *font, unsigned codepoint) {
 }
 
 Pgpt pg_glyph_path(Pg *g, Pgfont *font, Pgpt p, unsigned glyph) {
-    if (g && font && glyph < font->nglyphs && font->v && font->v->glyph_path) {
-        float base = 0.0f;
-
-        switch (g->s.text_pos) {
-        case PG_TEXT_POS_TOP:
-            base = pg_font_prop_float(font, PG_FONT_ASCENDER);
-            break;
-
-        case PG_TEXT_POS_BOTTOM:
-            base = pg_font_prop_float(font, PG_FONT_DESCENDER);
-            break;
-
-        case PG_TEXT_POS_BASELINE:
-            base = 0.0f;
-            break;
-
-        case PG_TEXT_POS_CENTER:
-            base = (pg_font_prop_float(font, PG_FONT_ASCENDER) +
-                    pg_font_prop_float(font, PG_FONT_DESCENDER)) * 0.5f;
-            break;
-        }
-
-        font->v->glyph_path(g, font, pg_add_pt(p, 0.0f, base), glyph);
-    }
+    if (g && font && glyph < font->nglyphs && font->v && font->v->glyph_path)
+        font->v->glyph_path(g, font, p, glyph);
     return font? pg_pt(p.x + pg_measure_glyph(font, glyph).x, p.y): p;
 }
 
@@ -949,12 +970,20 @@ Pgpt pg_measure_string(Pgfont *font, const char *str) {
 
 unsigned pg_fit_chars(Pgfont *font, const char *s, unsigned n, float width) {
     if (font && s) {
-        float       vw = 0.0f;
-        unsigned    nfit = 0;
-        const uint8_t *end = (uint8_t*) s + n;
-        for (const uint8_t *i = (uint8_t*) s; i < end && vw < width; nfit++)
-            vw += pg_measure_char(font, pg_read_utf8(&i)).x;
-        return nfit - (vw > width? 1: 0);
+        float           total = 0.0f;
+        unsigned        nfit = 0;
+        const uint8_t   *i = (uint8_t*) s;
+        const uint8_t   *end = i + n;
+
+        while (i < end) {
+            float size = pg_measure_char(font, pg_read_utf8(&i)).x;
+
+            if (total + size > width)
+                break;
+            total += size;
+            nfit++;
+        }
+        return nfit;
     }
     return 0;
 }

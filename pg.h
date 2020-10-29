@@ -232,6 +232,7 @@ Pgpaint *pg_set_colorspace(Pgpaint *paint, Pgcolorspace cspace);
 // State.
 Pg *pg_save(Pg *g);
 Pg *pg_restore(Pg *g);
+
 Pgrect pg_get_clip(const Pg *g);
 Pgmat pg_get_ctm(const Pg *g);
 Pgpaint pg_get_fill(const Pg *g);
@@ -241,19 +242,20 @@ Pgline_cap pg_get_line_cap(const Pg *g);
 float pg_get_flatness(const Pg *g);
 Pgfill_rule pg_get_fill_rule(const Pg *g);
 Pgtext_pos pg_get_text_pos(const Pg *g);
-Pg *pg_set_ctm(Pg *g, Pgmat ctm);
-Pg *pg_set_clip(Pg *g, float x, float y, float sx, float sy);
-Pg *pg_set_clip_abs(Pg *g, float ax, float ay, float bx, float by);
-Pg *pg_set_clip_rect(Pg *g, Pgrect clip);
-Pg *pg_set_fill_color(Pg *g, Pgcolorspace cspace, Pgcolor colour);
-Pg *pg_set_fill(Pg *g, Pgpaint paint);
-Pg *pg_set_stroke_color(Pg *g, Pgcolorspace cspace, Pgcolor colour);
-Pg *pg_set_stroke(Pg *g, Pgpaint paint);
-Pg *pg_set_line_width(Pg *g, float line_width);
-Pg *pg_set_line_cap(Pg *g, Pgline_cap line_cap);
-Pg *pg_set_flatness(Pg *g, float flatness);
-Pg *pg_set_fill_rule(Pg *g, Pgfill_rule winding);
-Pg *pg_set_text_pos(Pg *g, Pgtext_pos pos);
+bool pg_get_underline(const Pg *g);
+
+Pgmat pg_set_ctm(Pg *g, Pgmat ctm);
+Pgrect pg_set_clip(Pg *g, float x, float y, float sx, float sy);
+Pgrect pg_set_clip_abs(Pg *g, float ax, float ay, float bx, float by);
+Pgrect pg_set_clip_rect(Pg *g, Pgrect clip);
+Pgpaint pg_set_fill(Pg *g, Pgpaint paint);
+Pgpaint pg_set_stroke(Pg *g, Pgpaint paint);
+float pg_set_line_width(Pg *g, float line_width);
+Pgline_cap pg_set_line_cap(Pg *g, Pgline_cap line_cap);
+float pg_set_flatness(Pg *g, float flatness);
+Pgfill_rule pg_set_fill_rule(Pg *g, Pgfill_rule winding);
+Pgtext_pos pg_set_text_pos(Pg *g, Pgtext_pos pos);
+bool pg_set_underline(Pg *g, bool underline);
 
 
 
