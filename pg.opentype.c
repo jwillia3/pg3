@@ -46,12 +46,13 @@
 #define BC(I, SZ, MSG)      BOUNDS(cursect, I, SZ, MSG)
 
 // Peek byte, word, and doubleword from current section
-#define PB(I)       *(cursect.ptr + (I))
+#define PB(I)       (*(cursect.ptr + (I)))
 #define PW(I)       peek16(cursect.ptr + (I))
 #define PD(I)       peek32(cursect.ptr + (I))
 #define PN(I, N)    peekn(cursect.ptr + (I), (N))
 
 // Read word or doubleword from a table in the font.
+#define TB(S, I)    (*((OTF(font)->S).ptr + (I)))
 #define TW(S, I)    peek16((OTF(font)->S).ptr + (I))
 #define TD(S, I)    peek32((OTF(font)->S).ptr + (I))
 
@@ -86,18 +87,17 @@ typedef struct {
     section         loca;
     section         name;
     section         os2;
+    section         post;
 
     unsigned        fontindex;
     unsigned        nfonts;
-    bool            fixed;
     bool            italic;
-    float           angle;
 
     char            prop_buf[256];
 } otf;
 
 static const char *weights[10] = {
-    "(not set)",
+    "",
     "Thin",
     "Extra Light",
     "Light",
@@ -110,7 +110,7 @@ static const char *weights[10] = {
 };
 
 static const char *widths[10] = {
-    "(not set)",
+    "",
     "Ultra Condensed",
     "Extra Condensed",
     "Condensed",
@@ -120,6 +120,248 @@ static const char *widths[10] = {
     "Expanded",
     "Extra Expanded",
     "Ultra Expanded",
+};
+
+static const char *ibm[16][16] = {
+    [0] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    [1] = { "Oldstyle Serif", "IBM Rounded Legibility",
+            "Garalde", "Venetian", "Modified Venetian", "Dutch Modern",
+            "Dutch Traditional", "Contemporary", "Calligraphic",
+            "", "", "", "", "", "Miscellaneous" },
+    [2] = { "Transitional Serif", "Direct Line", "Script", "", "",
+            "", "", "", "", "", "", "", "", "", "", "Miscellaneous" },
+    [3] = { "Modern Serif", "Italian", "Script", "", "", "", "",
+            "", "", "", "", "", "", "", "", "Miscellaneous" },
+    [4] = { "Clarendon Serif", "Clarendon", "Modern", "Traditional",
+            "Newspaper", "Stub Serif", "Monotone", "Typewriter",
+            "", "", "", "", "", "", "", "Miscellaneous" },
+    [5] = { "Slab Serif", "Monotone", "Humanist", "Geometric", "Swiss",
+            "Typewriter", "", "", "", "", "", "", "", "", "", "Miscellaneous" },
+    [6] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    [7] = { "Freeform Serif", "Modern", "", "", "", "", "", "", "",
+            "", "", "", "", "", "", "Miscellaneous" },
+    [8] = { "Sans Serif", "IBM Neo-grotesque Gothic", "Humanist",
+            "Low-x Round Geometric", "High-x Round Geometric",
+            "Neo-grotesque Gothic", "Modified Neo-grotesque Gothic",
+            "", "", "Typewriter Gothic", "Matrix", "", "", "", "",
+            "Miscellaneous" },
+    [9] = { "Ornamental", "Engraver", "Black Letter", "Decorative",
+            "Three Dimensional", "", "", "", "", "", "", "", "", "",
+            "Miscellaneous" },
+    [10] = {"Script", "Unical", "Brush Joined", "Formal Joined",
+            "Monotone Joined", "Calligraphic", "Brush Unjoined",
+            "Formal Unjoined", "Monotone Unjoined",
+            "", "", "", "", "", "", "Miscellaneous" },
+    [11] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    [12] = {"Symbolic", "", "", "Mixed Serif", "", "", "Oldstyle Serif",
+            "Neo-grotesque Sans Serif", "", "", "", "", "", "",
+            "", "Miscellaneous" },
+    [13] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    [14] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    [15] = { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" }
+};
+
+static const char *panose_none[10][17] = {
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+    { "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" },
+};
+
+static const char *panose_2[10][17] = {
+    [0] = { "Latin Text", "Latin Text", "Latin Text", "Latin Text",
+            "Latin Text", "Latin Text", "Latin Text", "Latin Text",
+            "Latin Text", "Latin Text", "Latin Text", "Latin Text",
+            "Latin Text", "Latin Text", "Latin Text", "Latin Text" },
+    [1] = { "Serif Style", "No Fit", "Cove", "Obtuse Cove",
+            "Square Cove", "Square", "Thin", "Oval", "Exaggerated",
+            "Triangle", "Normal Sans", "Obtuse Sans",
+            "Perpendicular Sans", "Flared", "Rounded", ""},
+    [2] = { "Weight", "No Fit", "Very Light", "Light", "Thin", "Book",
+            "Medium", "Demi", "Bold", "Heavy", "Black", "Extra Black",
+            "", "", "", "", "" },
+    [3] = { "Proportion", "No Fit", "Old Style", "Modern", "Even Width",
+            "Extended", "Condensed", "Very Extended", "Very Condensed",
+            "Monospaced", "", "", "", "", "", "", "" },
+    [4] = { "Contrast", "No Fit", "None", "Very Low", "Low",
+            "Medium Low", "Medium", "Medium High", "High", "Very High",
+            "", "", "", "", "", "", "" },
+    [5] = { "Stroke Variation", "No Fit", "No Variation",
+            "Gradual/Diagonal", "Gradual/Transitional",
+            "Gradual/Vertical", "Gradual/Horizontal",
+            "Rapid/Vertical", "Rapid/Horizontal",
+            "Instant/Vertical", "Instant/Horizontal",
+            "", "", "", "", "", "" },
+    [6] = { "Arm Style", "No Fit",
+            "Straight Arms/Horizontal", "Straight Arms/Wedge",
+            "Straight Arms/Vertical", "Straight Arms/Single Serif",
+            "Straight Arms/Double Serif", "Non-Straight/Horizontal",
+            "Non-Straight/Wedge", "Non-Straight/Vertical",
+            "Non-Straight/Single Serif", "Non-Straight/Double Serif",
+            "", "", "", "" },
+    [7] = { "Letterform", "No Fit", "Normal/Contact",
+            "Normal/Weighted", "Normal/Boxed", "Normal/Flattened",
+            "Normal/Rounded", "Normal/Off Center", "Normal/Square",
+            "Oblique/Contact", "Oblique/Weighted", "Oblique/Boxed",
+            "Oblique/Flattened", "Oblique/Rounded", "Oblique/Off Center",
+            "Oblique/Square", "" },
+    [8] = { "Midline", "No Fit", "Standard/Trimmed", "Standard/Pointed",
+            "Standard/Serifed", "High/Trimmed", "High/Pointed",
+            "High/Serifed", "Constant/Trimmed", "Constant/Pointed",
+            "Constant/Serifed", "Low/Trimmed", "Low/Pointed",
+            "Low/Serifed", "", "", "" },
+    [9] = { "X-Height", "No Fit", "Constant/Small", "Constant/Standard",
+            "Constant/Large", "Ducking/Small", "Ducking/Standard",
+            "Ducking/Large", "", "", "", "", "", "", "", "" },
+};
+
+static const char *panose_3[10][17] = {
+    [0] = { "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written",
+            "Latin Hand Written", "Latin Hand Written" },
+    [1] = { "Tool Kind", "No Fit", "Flat Nib", "Pressure Point",
+            "Engraved", "Ball (Round Cap)", "Brush", "Rough",
+            "Felt Pen/Brush Tip", "Wild Brush - Drips a lot",
+            "", "", "", "", "", "" },
+    [2] = { "Weight", "No Fit", "Very Light", "Light", "Thin",
+            "Book", "Medium", "Demi", "Bold", "Heavy", "Black",
+            "Extra Black (Nord)", "", "", "", "" },
+    [3] = { "Spacing", "No fit", "Proportional Spaced", "Monospaced",
+            "", "", "", "", "", "", "", "", "", "", "", "" },
+    [4] = { "Aspect Ratio", "No Fit", "Very Condensed",
+            "Condensed", "Normal", "Expanded", "Very Expanded",
+            "", "", "", "", "", "", "", "", "" },
+    [5] = { "Contrast", "No Fit", "None", "Very Low", "Low",
+            "Medium Low", "Medium", "Medium High", "High",
+            "Very High", "", "", "", "", "", "" },
+    [6] = { "Topology", "No Fit", "Roman Disconnected",
+            "Roman Trailing", "Roman Connected",
+            "Cursive Disconnected", "Cursive Trailing",
+            "Cursive Connected", "Blackletter Disconnected",
+            "Blackletter Trailing", "Blackletter Connected",
+            "", "", "", "", "" },
+    [7] = { "Form", "No Fit", "Upright / No Wrapping",
+            "Upright / Some Wrapping", "Upright / More Wrapping",
+            "Upright / Extreme Wrapping", "Oblique / No Wrapping",
+            "Oblique / Some Wrapping", "Oblique / More Wrapping",
+            "Oblique / Extreme Wrapping", "Exaggerated / No Wrapping",
+            "Exaggerated / Some Wrapping", "Exaggerated / More Wrapping",
+            "Exaggerated / Extreme Wrapping", "", "" },
+    [8] = { "Finials", "No Fit", "None / No loops", "None / Closed loops",
+            "None / Open loops", "Sharp / No loops", "Sharp / Closed loops",
+            "Sharp / Open loops", "Tapered / No loops",
+            "Tapered / Closed loops", "Tapered / Open loops",
+            "Round / No loops", "Round / Closed loops",
+            "Round / Open loops", "", "" },
+    [9] = { "X-Ascent", "No Fit", "Very Low", "Low", "Medium",
+            "High", "Very High", "", "", "", "", "", "", "",
+            "", ""},
+};
+
+static const char *panose_4[10][17] = {
+    [0] = { "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives",
+            "Latin Decoratives", "Latin Decoratives" },
+    [1] = { "Class", "No Fit", "Derivative", "Non-standard Topology",
+            "Non-standard Elements", "Non-standard Aspect",
+            "Initials", "Cartoon", "Picture Stems", "Ornamented",
+            "Text and Background", "Collage", "Montage", "", "", "", "" },
+    [2] = { "Weight", "No Fit", "Very Light", "Light", "Thin",
+            "Book", "Medium", "Demi", "Bold", "Heavy", "Black",
+            "Extra Black", "", "", "", "", "" },
+    [3] = { "Aspect", "No fit", "Super Condensed", "Very Condensed",
+            "Condensed", "Normal", "Extended", "Very Extended",
+            "Super Extended", "Monospaced", "", "", "", "", "", "", "" },
+    [4] = { "Contrast", "No Fit", "None", "Very Low", "Low",
+            "Medium Low", "Medium", "Medium High", "High",
+            "Very High", "Horizontal Low", "Horizontal Medium",
+            "Horizontal High", "Broken", "", "", "" },
+    [5] = { "Serif Variant", "No Fit", "Cove", "Obtuse Cove",
+            "Square Cove", "Obtuse Square Cove", "Square",
+            "Thin", "Oval", "Exaggerated", "Triangle",
+            "Normal Sans", "Obtuse Sans", "Perpendicular Sans",
+            "Flared", "Rounded", "Script" },
+    [6] = { "Treatment", "No Fit", "None - Standard Solid Fill",
+            "White / No Fill", "Patterned Fill", "Complex Fill",
+            "Shaped Fill", "Drawn / Distressed", "", "", "", "",
+            "", "", "", "", "" },
+    [7] = { "Lining", "No Fit", "None", "Inline", "Outline",
+            "Engraved (Multiple Lines)", "Shadow", "Relief",
+            "Backdrop", "", "", "", "", "", "", "", "" },
+    [8] = { "Topology", "No Fit", "Standard", "Square",
+            "Multiple Segment", "Deco (E,M,S) Waco midlines",
+            "Uneven Weighting", "Diverse Arms", "Diverse Forms",
+            "Lombardic Forms", "Upper Case in Lower Case",
+            "Implied Topology", "Horseshoe E and A", "Cursive",
+            "Blackletter", "Swash Variance", "" },
+    [9] = { "Range of Characters", "No Fit", "Extended Collection",
+            "Litterals", "No Lower Case", "Small Caps", "", "",
+            "", "", "", "", "", "", "", "", "" },
+};
+
+static const char *panose_5[10][17] = {
+    [0] = { "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol",
+            "Latin Symbol", "Latin Symbol" },
+    [1] = { "Kind", "No Fit", "Montages", "Pictures", "Shapes",
+            "Scientific", "Music", "Expert", "Patterns", "Boarders",
+            "Icons", "Logos", "Industry specific", "", "", "" },
+    [2] = { "Weight", "No Fit", "", "", "", "", "", "", "", "",
+            "", "", "", "", "", "" },
+    [3] = { "Spacing", "No fit", "Proportional Spaced",
+            "Monospaced", "", "", "", "", "", "", "", "", "",
+            "", "", "" },
+    [4] = { "Aspect ratio & contrast", "No Fit", "", "", "", "",
+            "", "", "", "", "", "", "", "", "", "" },
+    [5] = { "Aspect ratio of character 94", "No Fit", "No Width",
+            "Exceptionally Wide", "Super Wide", "Very Wide", "Wide",
+            "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
+    [6] = { "Aspect ratio of character 119", "No Fit", "No Width",
+            "Exceptionally Wide", "Super Wide", "Very Wide", "Wide",
+            "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
+    [7] = { "Aspect ratio of character 157", "No Fit", "No Width",
+            "Exceptionally Wide", "Super Wide", "Very Wide", "Wide",
+            "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
+    [8] = { "Aspect ratio of character 163", "No Fit", "No Width",
+            "Exceptionally Wide", "Super Wide", "Very Wide", "Wide",
+            "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
+    [9] = { "Aspect ratio of character 211", "No Fit", "No Width",
+            "Exceptionally Wide", "Super Wide", "Very Wide", "Wide",
+            "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
+};
+
+const char *(*panose[10])[17] = {
+    [0] = panose_none,
+    [1] = panose_none,
+    [2] = panose_2,
+    [3] = panose_3,
+    [4] = panose_4,
+    [5] = panose_5,
+    [6] = panose_none,
+    [7] = panose_none,
+    [8] = panose_none,
+    [9] = panose_none,
 };
 
 static inline uint32_t peekn(const uint8_t *ptr, unsigned n) {
@@ -1009,8 +1251,6 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
     {
         FAIL("POST_TBL_VER_SIZE");
     }
-    bool fixed = PD(12);
-    float angle = (float) (int32_t) PD(4);
 
     // LOCA
     if (cffver == 0) {
@@ -1154,10 +1394,9 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
         .loca = loca,
         .name = name,
         .os2 = os2,
+        .post = post,
         .fontindex = index,
         .nfonts = nfonts,
-        .angle = angle,
-        .fixed = fixed,
         .italic = italic);
 
 fail:
@@ -1168,22 +1407,77 @@ static void _free(Pgfont *font) {
     (void) font;
 }
 
+static float underline_dist(Pgfont *font) {
+    return 0.75f * pg_font_prop_float(font, PG_FONT_DESCENDER);
+}
+
+static float underline_size(Pgfont *font) {
+    float d = pg_font_prop_float(font, PG_FONT_DESCENDER);
+    float w = pg_font_prop_float(font, PG_FONT_WEIGHT);
+    return d * (w / 2000.0f);
+}
+
+// Return -1 for sans serif, 1 for serif, 0 for anything else.
+static int serif_style(Pgfont *font) {
+    uint8_t         class = TB(os2, 30);
+    const uint8_t   *panose = OTF(font)->os2.ptr + 32;
+
+    if (!memchr(panose, 0, 10)) {
+        if (panose[0] == 2 || panose[0] == 4)
+            return   2 <= panose[1] && panose[1] <= 10? +1:
+                    11 <= panose[1] && panose[1] <= 14? -1:
+                    14 <= panose[1] && panose[1] <= 15? +1:
+                    0;
+        return 0;
+    }
+
+    if (class)
+        return  1 <= class && class <= 7? +1:
+                8 <= class && class <= 9? -1:
+                0;
+
+    const char *family = pg_font_prop_string(font, PG_FONT_FAMILY);
+    const char *middle = stristr(family, " sans ");
+    const char *beginning = stristr(family, "sans ");
+    const char *end = stristr(family, " sans");
+
+    if ((beginning && beginning == family) || (end && !end[5]) || middle)
+        return -1;
+
+    return 0;
+}
+
 static float _propf(Pgfont *font, Pgfont_prop id) {
     float sx = pg_get_font_scale(font).x;
     float sy = pg_get_font_scale(font).y;
+
     switch (id) {
     case PG_FONT_FORMAT:        return 0;
     case PG_FONT_INDEX:         return (float) OTF(font)->fontindex;
     case PG_FONT_NFONTS:        return (float) OTF(font)->nfonts;
-    case PG_FONT_FIXED:         return (float) OTF(font)->fixed;
-    case PG_FONT_ITALIC:        return (float) OTF(font)->italic;
+    case PG_FONT_IS_FIXED:      return (float) TD(post, 12);
+    case PG_FONT_IS_ITALIC:     return (float) OTF(font)->italic;
+    case PG_FONT_IS_SERIF:      return serif_style(font) > 0;
+    case PG_FONT_IS_SANS_SERIF: return serif_style(font) < 0;
     case PG_FONT_FAMILY:        return 0.0f;
     case PG_FONT_STYLE:         return 0.0f;
     case PG_FONT_FULL_NAME:     return 0.0f;
-    case PG_FONT_WEIGHT:        return TW(os2, 4);
-    case PG_FONT_WIDTH_CLASS:   return TW(os2, 6);
-    case PG_FONT_ANGLE:         return OTF(font)->angle;
-    case PG_FONT_PANOSE:        return 0.0f;
+    case PG_FONT_WEIGHT:        return (float) TW(os2, 4);
+    case PG_FONT_WIDTH_CLASS:   return (float) TW(os2, 6);
+    case PG_FONT_STYLE_CLASS:   return (float) TB(os2, 30);
+    case PG_FONT_STYLE_SUBCLASS:return (float) TB(os2, 31);
+    case PG_FONT_ANGLE:         return (float) (int32_t) TD(post, 4);
+    case PG_FONT_PANOSE_1:
+    case PG_FONT_PANOSE_2:
+    case PG_FONT_PANOSE_3:
+    case PG_FONT_PANOSE_4:
+    case PG_FONT_PANOSE_5:
+    case PG_FONT_PANOSE_6:
+    case PG_FONT_PANOSE_7:
+    case PG_FONT_PANOSE_8:
+    case PG_FONT_PANOSE_9:
+    case PG_FONT_PANOSE_10:
+        return (float) TB(os2, 32 + id - PG_FONT_PANOSE_1);
     case PG_FONT_NGLYPHS:       return (float) pg_get_nglyphs(font);
     case PG_FONT_EM:            return sy * pg_get_em_units(font);
     case PG_FONT_AVG_WIDTH:     return sx * (int16_t) TW(os2, 2);
@@ -1192,6 +1486,8 @@ static float _propf(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_LINEGAP:       return sy * (int16_t) TW(os2, 72);
     case PG_FONT_XHEIGHT:       return TW(os2, 0) >= 2? sy * (int16_t) TW(os2, 86): 0;
     case PG_FONT_CAPHEIGHT:     return TW(os2, 0) >= 2? sy * (int16_t) TW(os2, 88): 0;
+    case PG_FONT_UNDERLINE:     return underline_dist(font);
+    case PG_FONT_UNDERLINE_SIZE:return underline_size(font);
     case PG_FONT_SUB_SX:        return sy * (int16_t) TW(os2, 10);
     case PG_FONT_SUB_SY:        return sy * (int16_t) TW(os2, 12);
     case PG_FONT_SUB_X:         return sy * (int16_t) TW(os2, 14);
@@ -1206,37 +1502,75 @@ static float _propf(Pgfont *font, Pgfont_prop id) {
 
 static const char *_props(Pgfont *font, Pgfont_prop id) {
     char *buf = OTF(font)->prop_buf;
+
     switch (id) {
+
     case PG_FONT_FORMAT:        return  OTF(font)->cffver? "CFF": "TTF";
+
     case PG_FONT_FAMILY:        return  getname(font, 16, buf)? buf:
                                         getname(font, 1, buf)? buf:
                                         "";
+
     case PG_FONT_STYLE:         return  getname(font, 17, buf)? buf:
                                         getname(font, 2, buf)? buf:
                                         "";
+
     case PG_FONT_FULL_NAME:     return  getname(font, 4, buf)? buf:
                                         getname(font, 3, buf)? buf:
                                         "";
-    case PG_FONT_FIXED:         return pg_font_prop_int(font, id)
+
+    case PG_FONT_IS_FIXED:      return pg_font_prop_int(font, id)
                                         ? "Fixed Pitched":
                                         "Proportional";
-    case PG_FONT_ITALIC:        return pg_font_prop_int(font, id)
+
+    case PG_FONT_IS_ITALIC:     return pg_font_prop_int(font, id)
                                         ? "Italic":
                                         "Roman";
+
+    case PG_FONT_IS_SERIF:      return serif_style(font) > 0
+                                        ? "Serifed"
+                                        : "Not Serifed";
+
+    case PG_FONT_IS_SANS_SERIF: return serif_style(font) < 0
+                                        ? "Sans Serif"
+                                        : "Not Sans Serif";
+
     case PG_FONT_WEIGHT:
         return weights[TW(os2, 4) < 1000? TW(os2, 4) / 100: 0];
+
     case PG_FONT_WIDTH_CLASS:
         return widths[TW(os2, 6) < 1000? TW(os2, 6) / 100: 0];
-    case PG_FONT_PANOSE:
+
+    case PG_FONT_PANOSE_1:
+    case PG_FONT_PANOSE_2:
+    case PG_FONT_PANOSE_3:
+    case PG_FONT_PANOSE_4:
+    case PG_FONT_PANOSE_5:
+    case PG_FONT_PANOSE_6:
+    case PG_FONT_PANOSE_7:
+    case PG_FONT_PANOSE_8:
+    case PG_FONT_PANOSE_9:
+    case PG_FONT_PANOSE_10:
         {
-            const uint8_t *panose;
-            panose = OTF(font)->os2.ptr + 32;
-            sprintf(buf,
-                "%02d %02d %02d %02d %02d %02d %02d %02d %02d %02d",
-                panose[0], panose[1], panose[2], panose[3], panose[4],
-                panose[5], panose[6], panose[7], panose[8], panose[9]);
-            return buf;
+            unsigned    digit = id - PG_FONT_PANOSE_1;
+            uint8_t     class = TB(os2, 32);
+            uint8_t     value = TB(os2, 32 + digit);
+            return class && value? panose[class][digit][value]: "";
         }
+
+    case PG_FONT_STYLE_CLASS:
+        {
+            uint8_t c = TB(os2, 30);
+            return ibm[c < 16? c: 0][0];
+        }
+
+    case PG_FONT_STYLE_SUBCLASS:
+        {
+            uint8_t c = TB(os2, 30);
+            uint8_t s = TB(os2, 31);
+            return ibm[c < 16? c: 0][s < 16? s: 0];
+        }
+
     case PG_FONT_INDEX:
     case PG_FONT_NFONTS:
     case PG_FONT_ANGLE:
@@ -1248,6 +1582,8 @@ static const char *_props(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_LINEGAP:
     case PG_FONT_XHEIGHT:
     case PG_FONT_CAPHEIGHT:
+    case PG_FONT_UNDERLINE:
+    case PG_FONT_UNDERLINE_SIZE:
     case PG_FONT_SUB_X:
     case PG_FONT_SUB_Y:
     case PG_FONT_SUB_SX:
@@ -1301,10 +1637,9 @@ static void _glyph_path(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
             cffoutline(g, font, ctm, glyph);
 
         if (pg_get_underline(g)) {
-            float   d = pg_font_prop_float(font, PG_FONT_DESCENDER);
             float   w = pg_measure_glyph(font, glyph).x;
-            float   y = at.y - d * 0.75f;
-            float   t = d * (pg_font_prop_float(font, PG_FONT_WEIGHT) / 2000.0f);
+            float   y = at.y - pg_font_prop_float(font, PG_FONT_UNDERLINE);
+            float   t = pg_font_prop_float(font, PG_FONT_UNDERLINE_SIZE);
 
             // CFF and TTF tend to have opposite windings.
             if (OTF(font)->cffver == 0) {

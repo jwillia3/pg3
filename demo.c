@@ -102,6 +102,7 @@ void fonts() {
 
         pg_set_underline(g, true);
         pg_string_path(g, fbig, p, fam->name);
+
         pg_set_underline(g, false);
         pg_set_fill(g, accent);
         pg_fill(g);
@@ -113,8 +114,8 @@ void fonts() {
         for (Pgface *fac = fam->faces; fac->family; fac++) {
             Pgfont *fsmall = pg_open_font_file(fac->path, fac->index);
             pg_scale_font(fsmall, small, 0.0f);
-
-            pg_string_path(g, fsmall, p, fac->style);
+            pg_string_path(g, fsmall, p, pg_font_prop_int(fsmall, PG_FONT_IS_SANS_SERIF)? "Sans":"");
+            // pg_string_path(g, fsmall, p, fac->style);
             p.y += small;
 
             pg_free_font(fsmall);

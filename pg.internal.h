@@ -1,3 +1,6 @@
+#include <wchar.h>
+#include <wctype.h>
+
 #define new(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
 
 
@@ -8,8 +11,38 @@
 void *_pgmap_file(const char *path, size_t *sizep);
 void _pgunmap_file(void *ptr, size_t size);
 
-unsigned _pgget_font_dirs(char *dirs[256]);
+char **_pgget_font_files();
 
+
+static inline int stricmp(const char *ap, const char *bp) {
+    const uint8_t *a = (const uint8_t *) ap;
+    const uint8_t *b = (const uint8_t *) bp;
+    while (*a && *b) {
+        uint32_t ca = towlower(pg_read_utf8(&a));
+        uint32_t cb = towlower(pg_read_utf8(&b));
+        if (ca != cb)
+            return ca < cb? -1: 1;
+    }
+    return *a? 1: *b? -1: 0;
+}
+
+static inline const char *stristr(const char *ap, const char *bp) {
+    const uint8_t *next = (const uint8_t *) ap;
+
+    while (*next) {
+        const uint8_t   *b = (const uint8_t*) bp;
+        const uint8_t   *a = next;
+
+        while (*b && towlower(pg_read_utf8(&a)) == towlower(pg_read_utf8(&b))) {}
+
+        if (!*b)
+            return (const char*) next;
+
+        pg_read_utf8(&next);
+    }
+
+    return 0;
+}
 
 
 /*
@@ -29,6 +62,7 @@ is_flat(Pgpt a, Pgpt b, Pgpt c, Pgpt d, float flatness) {
     if (uy < vy) uy = vy;
     return (ux + uy <= 16.0f * flatness * flatness);
 }
+
 static inline unsigned
 flatten3(Pgpt *out, Pgpt a, Pgpt b, Pgpt c, float flatness, int lim) {
     if (lim == 0 || is_flat(a, b, c, c, flatness)) {
@@ -42,6 +76,7 @@ flatten3(Pgpt *out, Pgpt a, Pgpt b, Pgpt c, float flatness, int lim) {
         return n + flatten3(out + n, abc, bc, c, flatness, lim - 1);
     }
 }
+
 static inline unsigned
 flatten4(Pgpt *out, Pgpt a, Pgpt b, Pgpt c, Pgpt d, float flatness, int lim) {
     if (lim == 0 || is_flat(a, b, c, d, flatness)) {

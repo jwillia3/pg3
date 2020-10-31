@@ -244,8 +244,12 @@ struct Pgface {
     unsigned    index;
     unsigned    width;
     unsigned    weight;
-    bool        fixed;
-    bool        sloped;
+    bool        is_fixed;
+    bool        is_italic;
+    bool        is_serif;
+    bool        is_sans_serif;
+    uint8_t     style_class;
+    uint8_t     style_subclass;
     char        panose[10];
 };
 

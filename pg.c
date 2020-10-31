@@ -1,5 +1,3 @@
-#include <ctype.h>
-#include <dirent.h>
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,20 +51,6 @@ struct Pgfont {
 
 
 static Pgfamily     *allfamilies;
-
-
-
-static inline int stricmp(const char *ap, const char *bp) {
-    const uint8_t *a = (const uint8_t *) ap;
-    const uint8_t *b = (const uint8_t *) bp;
-    while (*a && *b) {
-        uint32_t ca = towlower(pg_read_utf8(&a));
-        uint32_t cb = towlower(pg_read_utf8(&b));
-        if (ca != cb)
-            return ca < cb? -1: 1;
-    }
-    return *a? 1: *b? -1: 0;
-}
 
 
 
@@ -652,7 +636,7 @@ static int compare_face(const void *ap, const void *bp) {
     return (r = stricmp(a->family, b->family))? r:
            a->width != b->width?    (int) a->width - (int) b->width:
            a->weight != b->weight?  (int) a->weight - (int) b->weight:
-           a->italic != b->italic?  (int) a->italic - (int) b->italic:
+           a->is_italic != b->is_italic?  (int) a->is_italic - (int) b->is_italic:
            (r = stricmp(a->style, b->style))? r:
            0;
 }
@@ -662,55 +646,17 @@ Pgfamily *pg_list_fonts() {
     if (allfamilies)
         return allfamilies;
 
-    char        *queue[256];
-    unsigned    nqueue = 0;
-    char        **files = 0;
-    unsigned    nfiles = 0;
+    char        **files = _pgget_font_files();
 
-    // Get all font files.
-    nqueue = _pgget_font_dirs(queue);
-    while (nqueue) {
-        char    *dirname = queue[--nqueue];
-        DIR     *dir = opendir(dirname);
-        struct dirent *e;
-
-        while (dir && (e = readdir(dir))) {
-            char    path[FILENAME_MAX + 1];
-            sprintf(path, "%s/%s", dirname, e->d_name);
-
-            if (e->d_name[0] == '.') // Hidden.
-                ;
-            else if (e->d_type == DT_DIR) { // Directory.
-                if (nqueue < 256)
-                    queue[nqueue++] = strdup(path);
-            }
-            else {  // File.
-                char ext[FILENAME_MAX];
-                strcpy(ext, strrchr(path, '.')? strrchr(path, '.'): "");
-                for (char *i = ext; *i; i++)
-                    *i = (char) toupper(*i);
-
-                bool is_otf =  !strcmp(ext, ".TTF") ||
-                                !strcmp(ext, ".TTC") ||
-                                !strcmp(ext, ".OTF");
-
-                if (is_otf) {
-                    files = realloc(files, ++nfiles * sizeof *files);
-                    files[nfiles - 1] = strdup(path);
-                }
-            }
-        }
-
-        free(dirname);
-    }
-
+    if (!files)
+        return calloc(1, sizeof(Pgfamily));
 
     // Get font properties.
     Pgface      *faces = 0;
     unsigned    nfaces = 0;
     Pgfont      *font;
 
-    for (unsigned i = 0; i < nfiles; i++)
+    for (unsigned i = 0; files[i]; i++) {
         if ((font = pg_open_font_file(files[i], 0))) {
             Pgface  f = {0};
             f.family = strdup(pg_font_prop_string(font, PG_FONT_FAMILY));
@@ -719,14 +665,22 @@ Pgfamily *pg_list_fonts() {
             f.index = (unsigned) pg_font_prop_int(font, PG_FONT_INDEX);
             f.width = (unsigned) pg_font_prop_int(font, PG_FONT_WIDTH_CLASS);
             f.weight = (unsigned) pg_font_prop_int(font, PG_FONT_WEIGHT);
-            f.fixed = (unsigned) pg_font_prop_int(font, PG_FONT_FIXED);
-            f.italic = pg_font_prop_int(font, PG_FONT_ITALIC);
-            strcpy(f.panose, pg_font_prop_string(font, PG_FONT_PANOSE));
+            f.is_fixed = (unsigned) pg_font_prop_int(font, PG_FONT_IS_FIXED);
+            f.is_italic = pg_font_prop_int(font, PG_FONT_IS_ITALIC);
+            f.is_serif = (unsigned) pg_font_prop_int(font, PG_FONT_IS_SERIF);
+            f.is_sans_serif = (unsigned) pg_font_prop_int(font, PG_FONT_IS_SANS_SERIF);
+            f.style_class = (uint8_t) pg_font_prop_int(font, PG_FONT_STYLE_CLASS);
+            f.style_subclass = (uint8_t) pg_font_prop_int(font, PG_FONT_STYLE_SUBCLASS);
+
+            for (unsigned i = 0; i < 10; i++)
+                f.panose[i] = (uint8_t) pg_font_prop_int(font, PG_FONT_PANOSE_1 + i);
+
             pg_free_font(font);
 
             faces = realloc(faces, (nfaces + 2) * sizeof *faces);
             faces[nfaces++] = f;
         }
+    }
 
     if (!faces)
         faces = malloc(sizeof *faces);
@@ -787,7 +741,7 @@ Pgfont *pg_find_font(const char *family, unsigned weight, bool italic) {
         int score =
             -abs((int) 5 - (int) fac->width)             * 10
             -abs((int) weight - (int) fac->weight) / 100 * 3
-            -abs((int) italic - (int) fac->italic)       * 2
+            -abs((int) italic - (int) fac->is_italic)    * 2
             + 0;
 
         if (score > bestscore) {
@@ -844,7 +798,11 @@ Pgfont *pg_new_font(const Pgfont_methods *v, const uint8_t *data, size_t size, u
     return 0;
 }
 
-Pgfont *pg_init_font(Pgfont *font, float units, unsigned nglyphs, const uint16_t cmap[65536]) {
+Pgfont *pg_init_font(Pgfont *font,
+                    float units,
+                    unsigned nglyphs,
+                    const uint16_t cmap[65536])
+{
     if (font) {
         font->units = units;
         font->nglyphs = nglyphs;

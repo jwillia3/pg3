@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +10,7 @@
 #include <unistd.h>
 
 #include "pg.h"
+#include "pg.internal.h"
 
 
 static char *xdg_data_home(char tmp[FILENAME_MAX + 1]) {
@@ -47,20 +50,60 @@ void _pgunmap_file(void *ptr, size_t size) {
     munmap(ptr, size);
 }
 
-unsigned _pgget_font_dirs(char *dirs[256]) {
-    char        tmp[FILENAME_MAX * 2 + 1];
-    unsigned    n = 0;
+char **_pgget_font_files() {
+    char        path[FILENAME_MAX * 2 + 1];
+    char        *queue[256];
+    unsigned    nqueue = 0;
+    char        **files = 0;
+    unsigned    nfiles = 0;
 
-    dirs[n++] = strdup("/usr/share/fonts");
-    dirs[n++] = strdup("/usr/local/share/fonts");
-
-    dirs[n++] = strdup(strcat(xdg_data_home(tmp), "/fonts"));
-
+    // Get roots.
+    queue[nqueue++] = strdup("/usr/share/fonts");
+    queue[nqueue++] = strdup("/usr/local/share/fonts");
+    queue[nqueue++] = strdup(strcat(xdg_data_home(path), "/fonts"));
     if (getenv("HOME")) {
-        sprintf(tmp, "%s/.fonts", getenv("HOME"));
-        dirs[n++] = strdup(tmp);
+        sprintf(path, "%s/.fonts", getenv("HOME"));
+        queue[nqueue++] = strdup(path);
     }
 
-    dirs[n] = 0;
-    return n;
+    // Recursively list files in directories.
+    while (nqueue) {
+        char            *dirname = queue[--nqueue];
+        DIR             *dir = opendir(dirname);
+        struct dirent   *e;
+
+        while (dir && (e = readdir(dir))) {
+            struct stat st;
+
+            sprintf(path, "%s/%s", dirname, e->d_name);
+
+            if (e->d_name[0] == '.') {
+                // Ignore hidden files.
+            }
+            else if (stat(path, &st) >= 0 && S_ISDIR(st.st_mode)) {
+                // Queue directories.
+                if (nqueue < 256)
+                    queue[nqueue++] = strdup(path);
+            }
+            else {
+                // Add files to the list.
+                char *ext = strrchr(path, '.');
+                static char *extensions[] = {".ttf", ".ttc", ".otf", 0};
+
+                for (char **i = extensions; ext && *i; i++)
+                    if (!stricmp(ext, *i)) {
+                        files = realloc(files, (nfiles + 2) * sizeof *files);
+                        files[nfiles++] = strdup(path);
+                        break;
+                    }
+            }
+        }
+
+        free(dirname);
+    }
+
+    if (nfiles)
+        files[nfiles] = 0;
+
+    return files;
 }

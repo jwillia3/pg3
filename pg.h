@@ -62,12 +62,25 @@ typedef enum {
     PG_FONT_FAMILY,         // Name of the family.
     PG_FONT_STYLE,          // Self-described style. (e.g. "Bold", "Oblique")
     PG_FONT_FULL_NAME,      // Self-described full name with family and style.
-    PG_FONT_FIXED,          // 1=Fixed-Pitched (monospaced); 0=Proportional
-    PG_FONT_ITALIC,         // 1=Italic (or slanted); 0=Regular
+    PG_FONT_IS_FIXED,       // 1=Fixed-Pitched (monospaced); 0=Proportional
+    PG_FONT_IS_ITALIC,      // 1=Italic (or slanted); 0=Regular
+    PG_FONT_IS_SANS_SERIF,  // 1=Sans Serif font, 0=Other
+    PG_FONT_IS_SERIF,       // 1=Serifed font, 0=Other
     PG_FONT_WEIGHT,         // Weight of font: 0-999. 400=Regular 700=Bold
     PG_FONT_WIDTH_CLASS,    // Width class: 0-9. 5=Normal
+    PG_FONT_STYLE_CLASS,    // Style class (see OpenType OS/2 table familyClass).
+    PG_FONT_STYLE_SUBCLASS, // Style subclass (see OpenType OS/2 table familyClass).
     PG_FONT_ANGLE,          // Angle of italics.
-    PG_FONT_PANOSE,         // 10-number PANOSE classification for font.
+    PG_FONT_PANOSE_1,       // 10-number PANOSE classification for font.
+    PG_FONT_PANOSE_2,
+    PG_FONT_PANOSE_3,
+    PG_FONT_PANOSE_4,
+    PG_FONT_PANOSE_5,
+    PG_FONT_PANOSE_6,
+    PG_FONT_PANOSE_7,
+    PG_FONT_PANOSE_8,
+    PG_FONT_PANOSE_9,
+    PG_FONT_PANOSE_10,
     PG_FONT_NGLYPHS,        // Number of glyphs.
     PG_FONT_EM,             // Height of EM square (scaled).
     PG_FONT_AVG_WIDTH,      // Average character width (scaled).
@@ -76,6 +89,8 @@ typedef enum {
     PG_FONT_LINEGAP,        // Distance from ascender to top of EM (scaled).
     PG_FONT_XHEIGHT,        // Distance from top of 'x' to baseline (scaled).
     PG_FONT_CAPHEIGHT,      // Distance from top of capital to baseline (scaled).
+    PG_FONT_UNDERLINE,      // Distance from baseline to underline (scaled).
+    PG_FONT_UNDERLINE_SIZE, // Size of underline (scaled).
     PG_FONT_SUB_X,          // Subscript square.
     PG_FONT_SUB_Y,
     PG_FONT_SUB_SX,
@@ -129,9 +144,13 @@ struct Pgface {
     unsigned    index;
     unsigned    width;
     unsigned    weight;
-    bool        fixed;
-    bool        italic;
-    char        panose[10];
+    bool        is_fixed;
+    bool        is_italic;
+    bool        is_serif;
+    bool        is_sans_serif;
+    uint8_t     style_class;
+    uint8_t     style_subclass;
+    uint8_t     panose[10];
 };
 
 
