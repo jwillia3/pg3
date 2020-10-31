@@ -174,6 +174,23 @@ Pgpaint pg_linear(Pgcolorspace cspace, float ax, float ay, float bx, float by) {
     return pg_linear_pt(cspace, pg_pt(ax, ay), pg_pt(bx, by));
 }
 
+Pgpaint *pg_set_linear_pt(Pgpaint *paint, Pgpt a, Pgpt b) {
+    if (paint && paint->type == PG_LINEAR_PAINT) {
+        paint->a = a;
+        paint->b = b;
+    }
+    return paint;
+}
+
+Pgpaint *pg_set_linear_rect(Pgpaint *paint, Pgrect r) {
+    return pg_set_linear_pt(paint, r.p, pg_rect_end(r));
+}
+
+Pgpaint *pg_set_linear(Pgpaint *paint, float ax, float ay, float bx, float by) {
+    return pg_set_linear_rect(paint, pg_rect(ax, ay, bx, by));
+}
+
+
 Pgpaint *pg_add_stop_color(Pgpaint *paint, float t, Pgcolor colour) {
     if (paint) {
         float   last = paint->nstops
@@ -525,19 +542,24 @@ Pg *pg_rect_path_pt(Pg *g, Pgrect r) {
 }
 
 Pg *pg_rrect_path(Pg *g, float x, float y, float sx, float sy, float rad) {
-    if (g && rad >= 0.0f) {
-        float   rx = fminf(sx, rad);
-        float   ry = fminf(sy, rad);
+    if (g) {
+        if (rad == 0.0f)
+            pg_rect_path(g, x, y, sx, sy);
 
-        pg_move_to(g,       x + sx - rx,    y);
-        pg_rel_curve3_to(g, rx,             0.0f,       0.0f,   ry);
-        pg_rel_line_to(g,   0.0f,           sy - ry - ry);
-        pg_rel_curve3_to(g, 0.0f,           ry,         -rx,    0.0f);
-        pg_rel_line_to(g,   -(sx - rx - rx), 0.0f);
-        pg_rel_curve3_to(g, -rx,            0.0f,       0.0f,   -ry);
-        pg_rel_line_to(g,   0.0f,           -(sy - ry - ry));
-        pg_rel_curve3_to(g, 0.0f,           -ry,        rx,     0.0f);
-        pg_close_path(g);
+        else if (rad > 0.0f) {
+            float   rx = fminf(sx, rad);
+            float   ry = fminf(sy, rad);
+
+            pg_move_to(g,       x + sx - rx,    y);
+            pg_rel_curve3_to(g, rx,             0.0f,       0.0f,   ry);
+            pg_rel_line_to(g,   0.0f,           sy - ry - ry);
+            pg_rel_curve3_to(g, 0.0f,           ry,         -rx,    0.0f);
+            pg_rel_line_to(g,   -(sx - rx - rx), 0.0f);
+            pg_rel_curve3_to(g, -rx,            0.0f,       0.0f,   -ry);
+            pg_rel_line_to(g,   0.0f,           -(sy - ry - ry));
+            pg_rel_curve3_to(g, 0.0f,           -ry,        rx,     0.0f);
+            pg_close_path(g);
+        }
     }
     return g;
 }
