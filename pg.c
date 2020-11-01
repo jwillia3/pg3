@@ -521,7 +521,11 @@ Pg *pg_rect_path_abs(Pg *g, float ax, float ay, float bx, float by) {
     return pg_rect_path(g, ax, ay, bx - ax, by - ay);
 }
 
-Pg *pg_rect_path_pt(Pg *g, Pgrect r) {
+Pg *pg_rect_path_pt(Pg *g, Pgpt p, Pgpt size) {
+    return pg_rect_path(g, p.x, p.y, size.x, size.y);
+}
+
+Pg *pg_rect_path_rect(Pg *g, Pgrect r) {
     return pg_rect_path(g, r.p.x, r.p.y, r.size.x, r.size.y);
 }
 
@@ -552,8 +556,12 @@ Pg *pg_rrect_path_abs(Pg *g, float ax, float ay, float bx, float by, float rad) 
     return pg_rrect_path(g, ax, ay, bx - ax, by - ay, rad);
 }
 
-Pg *pg_rrect_path_pt(Pg *g, Pgrect r, float rad) {
+Pg *pg_rrect_path_rect(Pg *g, Pgrect r, float rad) {
     return pg_rrect_path(g, r.p.x, r.p.y, r.size.x, r.size.y, rad);
+}
+
+Pg *pg_rrect_path_pt(Pg *g, Pgpt p, Pgpt size, float rad) {
+    return pg_rrect_path(g, p.x, p.y, size.x, size.y, rad);
 }
 
 Pg *pg_ctm_identity(Pg *g) {

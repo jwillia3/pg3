@@ -199,30 +199,41 @@ Pg *pg_new_canvas(const Pgcanvas_methods *v, unsigned width, unsigned height);
 
 // Paths.
 Pgpt pg_cur(Pg *g);
+
+Pg *pg_clear_path(Pg *g);
+
 Pg *pg_move_to(Pg *g, float x, float y);
 Pg *pg_move_to_pt(Pg *g, Pgpt p);
 Pg *pg_rel_move_to(Pg *g, float x, float y);
 Pg *pg_rel_move_to_pt(Pg *g, Pgpt p);
+
+Pg *pg_close_path(Pg *g);
+
 Pg *pg_line_to(Pg *g, float x, float y);
 Pg *pg_line_to_pt(Pg *g, Pgpt p);
 Pg *pg_rel_line_to(Pg *g, float x, float y);
 Pg *pg_rel_line_to_pt(Pg *g, Pgpt p);
+
 Pg *pg_curve3_to(Pg *g, float bx, float by, float cx, float cy);
 Pg *pg_curve3_to_pt(Pg *g, Pgpt b, Pgpt c);
 Pg *pg_rel_curve3_to(Pg *g, float bx, float by, float cx, float cy);
 Pg *pg_rel_curve3_to_pt(Pg *g, Pgpt b, Pgpt c);
+
 Pg *pg_curve4_to(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 Pg *pg_curve4_to_pt(Pg *g, Pgpt b, Pgpt c, Pgpt d);
 Pg *pg_rel_curve4_to(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 Pg *pg_rel_curve4_to_pt(Pg *g, Pgpt b, Pgpt c, Pgpt d);
-Pg *pg_close_path(Pg *g);
-Pg *pg_clear_path(Pg *g);
+
 Pg *pg_rect_path(Pg *g, float x, float y, float sx, float sy);
 Pg *pg_rect_path_abs(Pg *g, float ax, float ay, float bx, float by);
-Pg *pg_rect_path_pt(Pg *g, Pgrect r);
+Pg *pg_rect_path_pt(Pg *g, Pgpt p, Pgpt size);
+Pg *pg_rect_path_rect(Pg *g, Pgrect r);
+
 Pg *pg_rrect_path(Pg *g, float x, float y, float sx, float sy, float rad);
 Pg *pg_rrect_path_abs(Pg *g, float ax, float ay, float bx, float by, float rad);
-Pg *pg_rrect_path_pt(Pg *g, Pgrect r, float rad);
+Pg *pg_rrect_path_pt(Pg *g, Pgpt p, Pgpt size, float rad);
+Pg *pg_rrect_path_rect(Pg *g, Pgrect r, float rad);
+
 
 
 
@@ -239,14 +250,18 @@ Pg *pg_ctm_rotate(Pg *g, float rads);
 // Paint.
 Pgpaint pg_solid_color(Pgcolorspace cspace, Pgcolor colour);
 Pgpaint pg_solid(Pgcolorspace cspace, float x, float y, float z, float a);
+
 Pgpaint pg_linear_pt(Pgcolorspace cspace, Pgpt a, Pgpt b);
 Pgpaint pg_linear_rect(Pgcolorspace cspace, Pgrect r);
 Pgpaint pg_linear(Pgcolorspace cspace, float ax, float ay, float bx, float by);
+
 Pgpaint *pg_set_linear_pt(Pgpaint *paint, Pgpt a, Pgpt b);
 Pgpaint *pg_set_linear_rect(Pgpaint *paint, Pgrect r);
 Pgpaint *pg_set_linear(Pgpaint *paint, float ax, float ay, float bx, float by);
+
 Pgpaint *pg_add_stop_color(Pgpaint *paint, float t, Pgcolor colour);
 Pgpaint *pg_add_stop(Pgpaint *paint, float t, float x, float y, float z, float a);
+
 Pgpaint *pg_set_colorspace(Pgpaint *paint, Pgcolorspace cspace);
 
 
@@ -284,11 +299,11 @@ bool pg_set_underline(Pg *g, bool underline);
 // Font.
 Pgfamily *pg_list_fonts();
 Pgfont *pg_find_font(const char *family, unsigned weight, bool italic);
+
 void pg_free_font(Pgfont *font);
+
 Pgfont *pg_scale_font(Pgfont *font, float sx, float sy);
-
 float pg_get_font_height(Pgfont *font);
-
 
 Pgpt pg_glyph_path(Pg *g, Pgfont *font, Pgpt p, unsigned glyph);
 Pgpt pg_char_path(Pg *g, Pgfont *font, Pgpt p, unsigned codepoint);
@@ -296,25 +311,31 @@ Pgpt pg_chars_path(Pg *g, Pgfont *font, Pgpt p, const char *s, unsigned n);
 Pgpt pg_string_path(Pg *g, Pgfont *font, Pgpt p, const char *str);
 Pgpt pg_vprintf(Pg *g, Pgfont *font, Pgpt p, const char *str, va_list ap);
 Pgpt pg_printf(Pg *g, Pgfont *font, Pgpt p, const char *str, ...);
+
 Pgpt pg_measure_glyph(Pgfont *font, unsigned glyph);
 Pgpt pg_measure_char(Pgfont *font, unsigned codepoint);
 Pgpt pg_measure_chars(Pgfont *font, const char *s, unsigned n);
 Pgpt pg_measure_string(Pgfont *font, const char *str);
+
 unsigned pg_fit_chars(Pgfont *font, const char *s, unsigned n, float width);
 unsigned pg_fit_string(Pgfont *font, const char *str, float width);
 
-unsigned pg_get_glyph(Pgfont *font, unsigned codepoint);
 float pg_font_prop_float(Pgfont *font, Pgfont_prop id);
 int pg_font_prop_int(Pgfont *font, Pgfont_prop id);
 const char *pg_font_prop_string(Pgfont *font, Pgfont_prop id);
+
+unsigned pg_get_glyph(Pgfont *font, unsigned codepoint);
 
 Pgfont *pg_open_font(const uint8_t *data, size_t size, unsigned index);
 Pgfont *pg_open_font_file(const char *path, unsigned index);
 Pgfont *pg_open_otf_font(const uint8_t *data, size_t size, unsigned index);
 Pgfont *pg_new_font(const Pgfont_methods *v, const uint8_t *data, size_t size, unsigned index);
 Pgfont *pg_init_font(Pgfont *font, float units, unsigned nglyphs, const uint16_t cmap[65536]);
+
 void *pg_get_font_impl(const Pgfont *font);
+
 Pgpt pg_get_font_scale(Pgfont *font);
+
 unsigned pg_get_nglyphs(Pgfont *font);
 float pg_get_em_units(Pgfont *font);
 
@@ -341,6 +362,7 @@ Pgcolor pg_convert_color(Pgcolorspace cspace, Pgcolor colour);
 
 
 // Point and Vector Manipulation.
+static inline float pg_clamp(float a, float b, float c);
 static inline Pgpt pg_pt(float x, float y);
 static inline Pgpt pg_zero_pt();
 static inline Pgrect pg_empty_rect();
@@ -350,6 +372,7 @@ static inline Pgrect pg_rect_abs(float ax, float ay, float bx, float by);
 static inline Pgrect pg_rect_abs_pt(Pgpt a, Pgpt b);
 static inline Pgpt pg_rect_end(Pgrect r);
 static inline bool pg_pt_in_rect(Pgrect r, Pgpt p);
+static inline Pgrect pg_rect_intersect(Pgrect a, Pgrect b);
 static inline Pgpt pg_add_pts(Pgpt a, Pgpt b);
 static inline Pgpt pg_sub_pts(Pgpt a, Pgpt b);
 static inline Pgpt pg_mul_pts(Pgpt a, Pgpt b);
@@ -373,6 +396,9 @@ static inline uint8_t *pg_write_utf8(uint8_t *out, uint32_t c);
 
 
 
+static inline float pg_clamp(float a, float b, float c) {
+    return fmaxf(a, fminf(b, c));
+}
 static inline Pgpt pg_pt(float x, float y) {
     return (Pgpt) { x, y };
 }
@@ -409,6 +435,14 @@ static inline bool pg_pt_in_rect(Pgrect r, Pgpt p) {
     float   x = p.x - r.p.x;
     float   y = p.y - r.p.y;
     return  (0.0f <= x && x <= r.size.x) && (0.0f <= y && y <= r.size.y);
+}
+
+static inline Pgrect pg_rect_intersect(Pgrect a, Pgrect b) {
+    float x = fmaxf(a.p.x, b.p.x);
+    float y = fmaxf(a.p.y, b.p.y);
+    float ex = fminf(a.p.x + a.size.x, b.p.x + b.size.x);
+    float ey = fminf(a.p.y + a.size.y, b.p.y + b.size.y);
+    return ex < x || ey < y? pg_empty_rect(): pg_rect(x, y, ex - x, ey - y);
 }
 
 static inline Pgpt pg_add_pts(Pgpt a, Pgpt b) {

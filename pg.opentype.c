@@ -1663,7 +1663,7 @@ static void _glyph_path(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
 
 static Pgpt _measure_glyph(Pgfont *font, unsigned glyph) {
     unsigned    nhmtx = OTF(font)->nhmtx;
-    Pgpt       s = pg_get_font_scale(font);
+    Pgpt        s = pg_get_font_scale(font);
     float       adv = TW(hmtx, 4 * (glyph < nhmtx? glyph: nhmtx - 1)) * s.y;
 
     return pg_pt(adv, pg_get_font_height(font));

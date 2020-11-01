@@ -227,16 +227,20 @@ static void _free(Pg *g) {
 }
 
 static void _clear(Pg *g, Pgpaint paint) {
-    set_coords(g);
+
     if (paint.nstops == 1) {
+        set_coords(g);
+
         Pgcolor c = pg_convert_color(paint.cspace, paint.colours[0]);
         glClearColor(c.x, c.y, c.z, c.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
+
     else {
         GL      *gl = pg_get_canvas_impl(g);
         Pgpt    sz = pg_get_size(g);
 
+        set_coords(g);
         set_paint(g, paint);
 
         GLfloat verts[] = { 0.0f, 0.0f,
@@ -247,9 +251,10 @@ static void _clear(Pg *g, Pgpaint paint) {
         GLuint quads = make_buffer(GL_ARRAY_BUFFER, verts, 8 * sizeof *verts);
         glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
         glEnableVertexAttribArray(gl->posloc);
+
         glDisable(GL_STENCIL_TEST);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glEnable(GL_STENCIL_TEST);
+
         glDisableVertexAttribArray(gl->posloc);
         glDeleteBuffers(1, &quads);
 
@@ -349,24 +354,33 @@ static void _fill(Pg *g) {
         the stencil, and clockwise decrement.
         For each, non-zero stencil values are drawn.
     */
-    glColorMask(0, 0, 0, 0);
-    glEnable(GL_STENCIL_TEST);
-    glStencilFunc(GL_ALWAYS, 0, 0);
 
     GLuint src = make_buffer(GL_ARRAY_BUFFER, verts, nverts * sizeof *verts);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(gl->posloc);
 
     if (pg_get_fill_rule(g) == PG_EVEN_ODD_RULE) {
+
+        glColorMask(0, 0, 0, 0);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 0, 0);
         glStencilOp(GL_INVERT, GL_INVERT, GL_INVERT);
+
         for (unsigned i = 0; i < nsubs; i++) {
             int     start = SUB(subs[i]);
             int     n = SUB(subs[i + 1]) - SUB(subs[i]);
             glDrawArrays(GL_TRIANGLE_FAN, start, n);
         }
+
+        glColorMask(1.0f, 1.0f, 1.0f, 1.0f);
     }
     else {
+
+        glColorMask(0, 0, 0, 0);
         glEnable(GL_CULL_FACE);
+        glEnable(GL_STENCIL_TEST);
+        glStencilFunc(GL_ALWAYS, 0, 0);
+
         for (unsigned i = 0; i < nsubs; i++) {
             unsigned    start = SUB(subs[i]);
             unsigned    n = SUB(subs[i + 1]) - SUB(subs[i]);
@@ -379,33 +393,31 @@ static void _fill(Pg *g) {
             glStencilOp(GL_DECR_WRAP, GL_DECR_WRAP, GL_DECR_WRAP);
             glDrawArrays(GL_TRIANGLE_FAN, (GLint) start, (GLint) n);
         }
+
         glDisable(GL_CULL_FACE);
+        glColorMask(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     glDisableVertexAttribArray(gl->posloc);
     glDeleteBuffers(1, &src);
-    glColorMask(1, 1, 1, 1);
 
     // Draw a quad over mask only placing pixels where the stencil bit is set.
-    Pgpt min = verts[0];
-    Pgpt max = verts[0];
-    for (unsigned i = 0; i < nverts; i++) {
-        min.x = fminf(min.x, verts[i].x);
-        min.y = fminf(min.y, verts[i].y);
-        max.x = fmaxf(max.x, verts[i].x);
-        max.y = fmaxf(max.y, verts[i].y);
-    }
-    GLfloat quadverts[] = {min.x, min.y,
-                           max.x, min.y,
-                           min.x, max.y,
-                           max.x, max.y};
+
+    Pgrect bb = pg_get_bbox(g);
+    GLfloat quadverts[] = {bb.p.x, bb.p.y,
+                           bb.p.x + bb.size.x, bb.p.y,
+                           bb.p.x, bb.p.y + bb.size.y,
+                           bb.p.x + bb.size.x, bb.p.y + bb.size.y};
+
     GLuint quads = make_buffer(GL_ARRAY_BUFFER, quadverts, 8 * sizeof *quadverts);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(gl->posloc);
+
     glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
     glStencilFunc(GL_NOTEQUAL, 0, 0xff);
+
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glDisable(GL_STENCIL_TEST);
+
     glDisableVertexAttribArray(gl->posloc);
     glDeleteBuffers(1, &quads);
 
@@ -558,11 +570,13 @@ static void _stroke(Pg *g) {
     set_coords(g);
     set_paint(g, pg_get_stroke(g));
 
-    glDisable(GL_STENCIL_TEST);
     GLuint  src = make_buffer(GL_ARRAY_BUFFER, final, nfinal * sizeof *final);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(gl->posloc);
+
+    glDisable(GL_STENCIL_TEST);
     glDrawArrays(GL_TRIANGLES, 0, (GLsizei) nfinal);
+
     glDisableVertexAttribArray(gl->posloc);
     glDeleteVertexArrays(1, &src);
 
