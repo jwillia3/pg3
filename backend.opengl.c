@@ -1,3 +1,5 @@
+#if USE_OPENGL == 1
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -750,3 +752,5 @@ static const PgCanvasImpl methods = {
     _resize,
     _free,
 };
+
+#endif

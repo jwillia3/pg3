@@ -1,6 +1,8 @@
-GUI = opengl
 PLATFORM = linux
-SRC = pg.*.c font.*.c gui.$(GUI).c platform.$(PLATFORM).c
+USE_OPENGL = 1
+
+OPTIONS=-DPLATFORM=$(PLATFORM) \
+		$(USE_OPENGL:1=-DUSE_OPENGL=1)
 
 # PEDANTIC = -Weverything -Wno-padded -Wno-cast-qual -Wno-bad-function-cast\
 # 	-Wno-format-nonliteral -Wno-undef -Wno-comma -Wno-double-promotion\
@@ -9,30 +11,31 @@ SRC = pg.*.c font.*.c gui.$(GUI).c platform.$(PLATFORM).c
 # 	-Wno-strict-prototypes -pedantic -Wno-switch-enum
 
 CFLAGS = -Wall -Wextra -Werror -fno-caret-diagnostics $(PEDANTIC)
-ALL_CFLAGS = -std=c11 -D_XOPEN_SOURCE=700 -O2 -g -I. $(CFLAGS)
+ALL_CFLAGS = -std=c11 -D_XOPEN_SOURCE=700 $(OPTIONS) -O2 -g -I. $(CFLAGS)
 
+SRC = pg.*.c font.*.c backend.*.c platform.*.c
 
 
 run-demo: demo
 	LD_LIBRARY_PATH=.:$(LD_LIBRARY_PATH) ./demo
 
 
-demo:	demo.c libpg.so
-	$(CC) $(ALL_CFLAGS) -I. -L. -odemo demo.c -lpg -lGLEW -lGL -lglfw -lm
+demo:	demo.c libpg3.so
+	$(CC) $(ALL_CFLAGS) -I. -L. -odemo demo.c -lpg3 -lGLEW -lGL -lglfw -lm
 
 
-libpg.so: pg3.h internal.h $(SRC)
-	$(CC) $(ALL_CFLAGS) -olibpg.so -fpic -shared $(SRC) -lm -lGLEW -lGL
+libpg3.so: pg3.h internal.h $(SRC)
+	$(CC) $(ALL_CFLAGS) -olibpg3.so -fpic -shared $(SRC) -lm -lGLEW -lGL
 
 
 
 clean:
-	rm libpg.so demo
+	rm libpg3.so demo
 
 install:
-	install {pg3.h,pg3.util.h} $(DESTDIR)include/
-	install libpg.so $(DESTDIR)lib/
+	install pg3.h $(DESTDIR)include/
+	install libpg3.so $(DESTDIR)lib/
 
 uninstall:
-	rm $(DESTDIR)include/{pg3.h,pg3.util.h}
-	rm $(DESTDIR)lib/libpg.so
+	rm $(DESTDIR)include/pg3.h
+	rm $(DESTDIR)lib/libpg3.so

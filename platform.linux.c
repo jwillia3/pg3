@@ -1,3 +1,6 @@
+#if PLATFORM==linux
+
+
 #include <ctype.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -122,3 +125,5 @@ _pgget_font_files(void)
 
     return files;
 }
+
+#endif
