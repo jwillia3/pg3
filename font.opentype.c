@@ -10,6 +10,17 @@
     - Define TRACE_FONT to get step-by-step trace info on the console
 */
 
+
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pg3.h>
+#include <internal.h>
+
+
+
 // #define DEBUG_FONT 1
 // #define TRACE_FONT 1
 
@@ -27,39 +38,13 @@
     #define FAIL(ERR)       goto fail
 #endif
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pg.h>
-#include <pg.internal.h>
 
-#define OTF(FONT) ((otf*) pg_get_font_impl((FONT)))
-
-// Four-Character Tags
-#define C4(a,b,c,d) ((a << 24) + (b << 16) + (c << 8) + d)
-
-// Bounds Checking (SZ bytes are readable from offset N)
-#define BOUNDS(S, I, SZ, MSG)\
-    if ((uint64_t) (I) + (uint64_t) (SZ) > (uint64_t) (S).size)\
-        FAIL(MSG)
-#define BC(I, SZ, MSG)      BOUNDS(cursect, I, SZ, MSG)
-
-// Peek byte, word, and doubleword from current section
-#define PB(I)       (*(cursect.ptr + (I)))
-#define PW(I)       peek16(cursect.ptr + (I))
-#define PD(I)       peek32(cursect.ptr + (I))
-#define PN(I, N)    peekn(cursect.ptr + (I), (N))
-
-// Read word or doubleword from a table in the font.
-#define TB(S, I)    (*((OTF(font)->S).ptr + (I)))
-#define TW(S, I)    peek16((OTF(font)->S).ptr + (I))
-#define TD(S, I)    peek32((OTF(font)->S).ptr + (I))
 
 typedef union {
-    float       f;
-    int32_t     i;
+    float           f;
+    int32_t         i;
 } cffoperand;
+
 
 typedef struct cffindex {
     unsigned        n;
@@ -68,12 +53,22 @@ typedef struct cffindex {
     const uint8_t   *heap;
 } cffindex;
 
+
 typedef struct {
     const uint8_t   *ptr;
     size_t size;
 } section;
 
+
 typedef struct {
+    PgFont          font;
+
+    float           units;
+    unsigned        nglyphs;
+    float           sx;
+    float           sy;
+    uint16_t        *cmap;
+
     unsigned        cffver;
     bool            longloca;
     unsigned        nhmtx;
@@ -94,7 +89,43 @@ typedef struct {
     bool            italic;
 
     char            prop_buf[256];
-} otf;
+} OTF;
+
+
+
+#define OTF(FONT) ((OTF*) (FONT))
+
+
+
+// Four-Character Tags
+#define C4(a,b,c,d) ((a << 24) + (b << 16) + (c << 8) + d)
+
+
+
+// Bounds Checking (SZ bytes are readable from offset N)
+#define BOUNDS(S, I, SZ, MSG)\
+    if ((uint64_t) (I) + (uint64_t) (SZ) > (uint64_t) (S).size)\
+        FAIL(MSG)
+#define BC(I, SZ, MSG)      BOUNDS(cursect, I, SZ, MSG)
+
+
+
+// Peek byte, word, and doubleword from current section
+#define PB(I)       (*(cursect.ptr + (I)))
+#define PW(I)       peek16(cursect.ptr + (I))
+#define PD(I)       peek32(cursect.ptr + (I))
+#define PN(I, N)    peekn(cursect.ptr + (I), (N))
+
+
+
+// Read word or doubleword from a table in the font.
+#define TB(S, I)    (*((OTF(font)->S).ptr + (I)))
+#define TW(S, I)    peek16((OTF(font)->S).ptr + (I))
+#define TD(S, I)    peek32((OTF(font)->S).ptr + (I))
+
+static const PgFontImpl methods;
+
+
 
 static const char *weights[10] = {
     "",
@@ -114,9 +145,9 @@ static const char *widths[10] = {
     "Ultra Condensed",
     "Extra Condensed",
     "Condensed",
-    "Semi-Condensed",
+    "Semi Condensed",
     "Normal",
-    "Semi-Expanded",
+    "Semi Expanded",
     "Expanded",
     "Extra Expanded",
     "Ultra Expanded",
@@ -364,20 +395,35 @@ const char *(*panose[10])[17] = {
     [9] = panose_none,
 };
 
-static inline uint32_t peekn(const uint8_t *ptr, unsigned n) {
+
+
+static inline uint32_t
+peekn(const uint8_t *ptr, unsigned n)
+{
     uint32_t x = 0;
     for (unsigned i = 0; i < n; i++)
         x = (x << 8) + ptr[i];
     return x;
 }
-static inline uint16_t peek16(const uint8_t *ptr) {
+
+
+static inline uint16_t
+peek16(const uint8_t *ptr)
+{
     return (uint16_t) (ptr[0] << 8 | ptr[1]);
 }
-static inline uint32_t peek32(const uint8_t *ptr) {
+
+
+static inline uint32_t
+peek32(const uint8_t *ptr)
+{
     return (uint32_t) peek16(ptr) << 16 | peek16(ptr + 2);
 }
 
-static unsigned biassubr(unsigned i, unsigned n) {
+
+static unsigned
+biassubr(unsigned i, unsigned n)
+{
     return  n < 1240?   i + 107:
             n < 33900?  i + 1131:
                         i + 32768;
@@ -385,7 +431,9 @@ static unsigned biassubr(unsigned i, unsigned n) {
 
 // This is used for CFF integers AND Type 2 integers.
 // They differ in 29 and 255 so the byte sent to this must be checked first.
-static int32_t cffint(section cursect, size_t *offset) {
+static int32_t
+cffint(section cursect, size_t *offset)
+{
     const uint8_t   *s = cursect.ptr + *offset;
     uint8_t         x = *s;
     size_t          size =  32  <= x && x <= 246?   1:
@@ -394,11 +442,14 @@ static int32_t cffint(section cursect, size_t *offset) {
                             x == 28?                3:
                             5;
     size_t          limit = cursect.size;
+
     if (*offset + size > limit) {
         *offset = limit;
         return 0;
     }
+
     *offset += size;
+
     return 32 <= x && x <= 246?     (int16_t) (x - 139):
            247 <= x && x <= 250?    (int16_t) ((x - 247) * 256 + s[1] + 108):
            251 <= x && x <= 254?    (int16_t) (-(x - 251) * 256 - s[1] - 108):
@@ -406,7 +457,10 @@ static int32_t cffint(section cursect, size_t *offset) {
            (int32_t) (s[1] << 24 | s[2] << 16 | s[3] << 8 | s[4]);
 }
 
-static float cffreal(section cursect, size_t *offset) {
+
+static float
+cffreal(section cursect, size_t *offset)
+{
     static const char *map = "0123456789.E__-";
     char            buf[16 + 4];
     size_t          i = *offset;
@@ -435,8 +489,10 @@ static float cffreal(section cursect, size_t *offset) {
         if ((x & 0xf0) == 0xf0 || (x & 0x0f) == 0x0f)
             break;
     }
+
     buf[n] = 0;
     *offset = i;
+
     return strtof(buf, 0);
 }
 
@@ -445,7 +501,9 @@ static float cffreal(section cursect, size_t *offset) {
 // -1 is returned on error and processing should halt.
 static int
 nextdict(section cursect, size_t *p, cffoperand *stack, unsigned *ss) {
+
     *ss = 0;
+
     while (*p < cursect.size) {
         unsigned o = PB(*p);
 
@@ -455,52 +513,71 @@ nextdict(section cursect, size_t *p, cffoperand *stack, unsigned *ss) {
             (*p)++;
             stack[(*ss)++].f = cffreal(cursect, p);
         }
+
         else if (o >= 28 && o != 255) {   // Integer operand.
             if (*ss >= 48)
                 FAIL("CFF_DICT_STACK_OVERFLOW_INT");
             stack[(*ss)++].i = cffint(cursect, p);
         }
+
         else if (o == 12) {               // Two-byte operator.
             BC(*p, 2, "TWO_BYTE_OP");
             o = 0x0c00 + PB(*p + 1);
             *p += 2;
             return (int) o;
         }
+
         else {
             (*p)++;
             return (int) o;
         }
     }
+
     FAIL("NO_OPERATOR");
+
 fail:
     return -1; // No operator to consume operands.
 }
 
+
 // Read a CFF INDEX and skip past it.
-static bool makeindex(section cursect, size_t *p, cffindex *index) {
+static bool
+makeindex(section cursect, size_t *p, cffindex *index)
+{
     BC(*p, 2, "NO_INDEX_SIZE");
+
     if (PW(*p) == 0) { // Special case zero-element index.
         *p += 2;
         *index = (cffindex) {0, 0, 0, 0};
         return true;
     }
+
     BC(*p + 2, 1, "NO_INDEX_HEADER");
+
     unsigned    n = PW(*p);
     unsigned    sz = PB(*p + 2);
     size_t      offsets = *p + 3;
     size_t      heap = offsets + (n + 1) * sz; // Adjusted for offsets +1.
 
     *index = (cffindex) {n, sz, cursect.ptr + offsets, cursect.ptr + heap};
+
     if (sz > 4) FAIL("IDX_OFF_SIZE");
+
     BC(offsets + n * sz, sz, "IDX_OFFS_SHORT");
+
     *p = heap - 1 + PN(offsets + n * sz, sz);
+
     BC(*p, 0, "IDX_DATA_SHORT");
+
     return true;
 fail:
     return false;
 }
 
-static bool indexindex(cffindex index, unsigned i, section *sect) {
+
+static bool
+indexindex(cffindex index, unsigned i, section *sect)
+{
     if (i >= index.n)
         return false;
     unsigned m = peekn(index.offsets + i * index.sz, index.sz);
@@ -509,7 +586,10 @@ static bool indexindex(cffindex index, unsigned i, section *sect) {
     return true;
 }
 
-static bool loadcmap4(uint16_t charmap[65536], section cursect) {
+
+static bool
+loadcmap4(uint16_t charmap[65536], section cursect)
+{
     BC(12, 2, "CMAP_FORMAT4_HEADER");
     if (PW(0) != 4) FAIL("CMAP_SUBTBL_FORMAT");
 
@@ -543,8 +623,11 @@ fail:
     return false;
 }
 
-static bool getname(const Pgfont *font, unsigned id, char *buf) {
-    section cursect = ((otf*) pg_get_font_impl(font))->name;
+
+static bool
+getname(const PgFont *font, unsigned id, uint8_t *buf, uint8_t *limit)
+{
+    section cursect = OTF(font)->name;
 
     BC(4, 2,            "NAME_TBL_HEADER");
     BC(6, 12 * PW(2),   "NAME_TBL_NRECORDS");
@@ -571,8 +654,9 @@ static bool getname(const Pgfont *font, unsigned id, char *buf) {
     unsigned offset =   PW(best + 10);
     unsigned src =      PW(4) + offset;
     BC(src, length, "NAME_TBL_DATA");
+
     for (unsigned i = 0; i < length / 2; i++)
-        buf = (char*) pg_write_utf8((uint8_t*) buf, PW(src + i * 2));
+        buf = pg_write_utf8(buf, limit, PW(src + i * 2));
     *buf = 0;
     return true;
 
@@ -580,21 +664,48 @@ fail:
     return false;
 }
 
-static void
-ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
 
-    bool        dw = OTF(font)->longloca;
-    uint32_t    offset = dw? TD(loca, glyph * 4): TW(loca, glyph * 2) * 2;
-    uint32_t    size = dw?  TD(loca, glyph * 4 + 4) - offset:
-                            TW(loca, glyph * 2 + 2) * 2 - offset;
-    if (size == 0)
-        return;
-
+static section
+glyf_section(PgFont *font, unsigned glyph)
+{
     section     cursect = OTF(font)->glyf;
+    bool        longloca = OTF(font)->longloca;
+    uint32_t    offset;
+    uint32_t    size;
+
+    if (longloca) {
+        offset = TD(loca, glyph * 4);
+        size = TD(loca, glyph * 4 + 4) - offset;
+    }
+    else {
+        offset = TW(loca, glyph * 2) * 2;
+        size = TW(loca, glyph * 2 + 2) * 2 - offset;
+    }
+
+    if (!size)
+        return (section) { 0, 0 };
+
+
     BC(offset, 0,       "LOCA_GLYPH_OFF");
     BC(offset, size,    "LOCA_GLYPH_SIZE");
 
-    cursect = (section) {cursect.ptr + offset, size};
+    return (section) {cursect.ptr + offset, size};
+
+fail:
+    return (section) { 0, 0 };
+}
+
+
+static void
+ttoutline(Pg *g, PgFont *font, PgTM ctm, unsigned glyph)
+{
+
+    section cursect = glyf_section(font, glyph);
+
+
+    // Empty Glyph.
+    if (!cursect.size)
+        return;
 
     BC(8, 2, "GLYF_HEADER");
     unsigned ncontours = (unsigned) (int16_t) PW(0);
@@ -633,9 +744,9 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         // have the same effect.
         float       x = 0.0f;
         float       y = 0.0f;
-        Pgpt     home = pg_pt(0.0f, 0.0f);    // Start of this contour.
-        Pgpt     oldp = home;                // Prev point; used in curves.
-        Pgpt     p = home;                   // Current point.
+        PgPt     home = PgPt(0.0f, 0.0f);    // Start of this contour.
+        PgPt     oldp = home;                // Prev point; used in curves.
+        PgPt     p = home;                   // Current point.
         unsigned    xi = flags + fsize;         // X coordinate index.
         unsigned    yi = xi + xsize;            // Y coordinate index.
         bool        curving = false;            // Last segment was a curve.
@@ -662,26 +773,26 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
                 yi += f & 4? 1: f & 32? 0: 2;
 
                 oldp = p;
-                p = pg_apply_mat(ctm, pg_pt(x, y));
+                p = pg_apply_tm(ctm, PgPt(x, y));
 
                 if (contourstart) {                     // Closing subpath
                     next = PW(ends + ci++ * 2) + 1;
                     if (curving)
-                        pg_curve3_to_pt(g, oldp, home);
-                    pg_close_path(g);
-                    pg_move_to_pt(g, p);
+                        pg_curve3(g, oldp.x, oldp.y, home.x, home.y);
+                    pg_close(g);
+                    pg_move(g, p.x, p.y);
                     home = p;
                     curving = false;
                 }
                 else if (anchor && curving) {           // Curve-to-line
-                    pg_curve3_to_pt(g, oldp, p);
+                    pg_curve3(g, oldp.x, oldp.y, p.x, p.y);
                     curving = false;
                 }
                 else if (anchor)                        // Line-to-line
-                    pg_line_to_pt(g, p);
+                    pg_line(g, p.x, p.y);
                 else if (curving) {                     // Line-to-curve
-                    Pgpt m = pg_mid_pt(oldp, p);
-                    pg_curve3_to_pt(g, oldp, m);
+                    PgPt m = midpoint(oldp, p);
+                    pg_curve3(g, oldp.x, oldp.y, m.x, m.y);
                 }
                 else                                    // Curve-to-curve
                     curving = true;
@@ -689,8 +800,8 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         }
         if (npoints != 0) {
             if (curving)
-                pg_curve3_to_pt(g, p, home);
-            pg_close_path(g);
+                pg_curve3(g, p.x, p.y, home.x, home.y);
+            pg_close(g);
         }
 
     }
@@ -705,7 +816,7 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
             BC(p, 4, "GLYF_COMPOSITE_HEADER");
             unsigned    flags = PW(p);
             unsigned    newglyph = PW(p + 2);
-            Pgmat       tm = pg_ident_mat();
+            PgTM       tm = pg_ident_tm();
             p += 4;
 
             // Get x- and y-translation.
@@ -746,7 +857,7 @@ ttoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
                 p += 8;
             }
 
-            ttoutline(g, font, pg_mul_mat(tm, ctm), newglyph);
+            ttoutline(g, font, pg_mul_tm(tm, ctm), newglyph);
 
             if (~flags & 0x20)  // No more components
                 break;
@@ -759,38 +870,57 @@ fail:
 }
 
 
-static inline Pgpt
-rmove(Pg *g, Pgmat ctm, Pgpt a, Pgpt b) {
-    b = pg_add_pts(a, b);
-    pg_close_path(g);
-    pg_move_to_pt(g, pg_apply_mat(ctm, b));
+static inline PgPt
+rmove(Pg *g, PgTM ctm, PgPt a, PgPt b) {
+    b = add(a, b);
+
+    PgPt    tb = pg_apply_tm(ctm, b);
+
+    pg_close(g);
+    pg_move(g, tb.x, tb.y);
+
     DBGTRACE("        MOVE (%g, %g)\n", b.x, b.y);
+
     return b;
 }
 
-static inline Pgpt
-rline(Pg *g, Pgmat ctm, Pgpt a, Pgpt b) {
-    b = pg_add_pts(a, b);
-    pg_line_to_pt(g, pg_apply_mat(ctm, b));
+
+static inline PgPt
+rline(Pg *g, PgTM ctm, PgPt a, PgPt b) {
+    b = add(a, b);
+
+    PgPt    tb = pg_apply_tm(ctm, b);
+
+    pg_line(g, tb.x, tb.y);
+
     DBGTRACE("        LINE (%g, %g) - (%g, %g)\n", a.x, a.y, b.x, b.y);
+
     return b;
 }
 
-static inline Pgpt
-rcurve(Pg *g, Pgmat ctm,  Pgpt a, Pgpt b, Pgpt c, Pgpt d) {
-    b = pg_add_pts(a, b);
-    c = pg_add_pts(b, c);
-    d = pg_add_pts(c, d);
-    pg_curve4_to_pt(g,
-        pg_apply_mat(ctm, b),
-        pg_apply_mat(ctm, c),
-        pg_apply_mat(ctm, d));
+
+static inline PgPt
+rcurve(Pg *g, PgTM ctm,  PgPt a, PgPt b, PgPt c, PgPt d) {
+    b = add(a, b);
+    c = add(b, c);
+    d = add(c, d);
+
+    PgPt    tb = pg_apply_tm(ctm, b);
+    PgPt    tc = pg_apply_tm(ctm, c);
+    PgPt    td = pg_apply_tm(ctm, d);
+
+    pg_curve4(g, tb.x, tb.y, tc.x, tc.y, td.x, td.y);
+
     DBGTRACE("        CURV (%g, %g) - (%g, %g) - (%g, %g) - (%g, %g)\n",
         a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y);
+
     return d;
 }
 
-static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
+static void
+cffoutline(Pg *g, PgFont *font, PgTM ctm, unsigned glyph)
+{
+
     typedef struct {
         section src;
         size_t  p;
@@ -798,13 +928,13 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
 
     float       s[48];                              // Argument Stack.
     frame       fs[10];                             // Frame Stack (for subrs).
-    cffindex    lsubrs = OTF(font)->lsubrs;     // Local Subroutines.
-    cffindex    gsubrs = OTF(font)->gsubrs;     // Global Subroutines.
+    cffindex    lsubrs = OTF(font)->lsubrs;         // Local Subroutines.
+    cffindex    gsubrs = OTF(font)->gsubrs;         // Global Subroutines.
     section     cursect;                            // Glyph CharString.
     size_t      p = 0;                              // Cursor pointer.
     unsigned    n = 0;                              // Stack argument count.
     unsigned    nf = 0;                             // Stack frame count.
-    Pgpt     a = {0.0f, 0.0f};
+    PgPt        a = {0.0f, 0.0f};
     unsigned    i;
     unsigned    hints = 0;
     float       given;
@@ -911,21 +1041,21 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 4:         // vmoveto
             if (n < 1)
                 FAIL("TYPE2_VMOVETO_ARG");
-            a = rmove(g, ctm, a, pg_pt(0.0f, s[n - 1]));
+            a = rmove(g, ctm, a, PgPt(0.0f, s[n - 1]));
             header = false;
             break;
 
         case 5:         // rlineto
             for (i = 0; i + 2 <= n; i += 2)
-                a = rline(g, ctm, a, pg_pt(s[i], s[i + 1]));
+                a = rline(g, ctm, a, PgPt(s[i], s[i + 1]));
             break;
 
         case 6:         // hlineto
             i = 0;
             if (n & 1)
-                a = rline(g, ctm, a, pg_pt(s[i++], 0.0f));
+                a = rline(g, ctm, a, PgPt(s[i++], 0.0f));
             for ( ; i < n; i++) {
-                Pgpt b = i & 1? pg_pt(0.0f, s[i]): pg_pt(s[i], 0.0f);
+                PgPt b = i & 1? PgPt(0.0f, s[i]): PgPt(s[i], 0.0f);
                 a = rline(g, ctm, a, b);
             }
             break;
@@ -933,9 +1063,9 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 7:         // vlineto
             i = 0;
             if (n & 1)
-                a = rline(g, ctm, a, pg_pt(0.0f, s[i++]));
+                a = rline(g, ctm, a, PgPt(0.0f, s[i++]));
             for ( ; i < n; i++) {
-                Pgpt b = i & 1? pg_pt(s[i], 0.0f): pg_pt(0.0f, s[i]);
+                PgPt b = i & 1? PgPt(s[i], 0.0f): PgPt(0.0f, s[i]);
                 a = rline(g, ctm, a, b);
             }
             break;
@@ -943,9 +1073,9 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 8:         // rrcurveto
             for (i = 0; i + 6 <= n; i += 6)
                 a = rcurve(g, ctm, a,
-                    pg_pt(s[i + 0], s[i + 1]),
-                    pg_pt(s[i + 2], s[i + 3]),
-                    pg_pt(s[i + 4], s[i + 5]));
+                    PgPt(s[i + 0], s[i + 1]),
+                    PgPt(s[i + 2], s[i + 3]),
+                    PgPt(s[i + 4], s[i + 5]));
             break;
 
         // case 9:      // Reserved
@@ -963,7 +1093,7 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         // case 13:     // Reserved
 
         case 14:        // endchar
-            pg_close_path(g);
+            pg_close(g);
             goto done;
 
         // case 15:     // Reserved
@@ -976,14 +1106,14 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 21:        // rmoveto
             if (n < 2)
                 FAIL("TYPE2_RMOVETO_ARGS");
-            a = rmove(g, ctm, a, pg_pt(s[n - 2], s[n - 1]));
+            a = rmove(g, ctm, a, PgPt(s[n - 2], s[n - 1]));
             header = false;
             break;
 
         case 22:        // hmoveto
             if (n < 1)
                 FAIL("TYPE2_HMOVETO_ARG");
-            a = rmove(g, ctm, a, pg_pt(s[n - 1], 0.0f));
+            a = rmove(g, ctm, a, PgPt(s[n - 1], 0.0f));
             header = false;
             break;
 
@@ -992,23 +1122,23 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 24:        // rcurveline
             for (i = 0; i + 6 <= n; i += 6)
                 a = rcurve(g, ctm, a,
-                        pg_pt(s[i + 0], s[i + 1]),
-                        pg_pt(s[i + 2], s[i + 3]),
-                        pg_pt(s[i + 4], s[i + 5]));
+                        PgPt(s[i + 0], s[i + 1]),
+                        PgPt(s[i + 2], s[i + 3]),
+                        PgPt(s[i + 4], s[i + 5]));
             if (i != n - 2)
                 FAIL("TYPE2_RCURVELINE_ARGS");
-            a = rline(g, ctm, a, pg_pt(s[n - 2], s[n - 1]));
+            a = rline(g, ctm, a, PgPt(s[n - 2], s[n - 1]));
             break;
 
         case 25:        // rlinecurve
             for (i = 0; i + 6 < n; i += 2) // Stop six away from end.
-                a = rline(g, ctm, a, pg_pt(s[i + 0], s[i + 1]));
+                a = rline(g, ctm, a, PgPt(s[i + 0], s[i + 1]));
             if (i != n - 6)
                 FAIL("TYPE2_RLINECURVE_ARGS");
             a = rcurve(g, ctm, a,
-                pg_pt(s[n - 6], s[n - 5]),
-                pg_pt(s[n - 4], s[n - 3]),
-                pg_pt(s[n - 2], s[n - 1]));
+                PgPt(s[n - 6], s[n - 5]),
+                PgPt(s[n - 4], s[n - 3]),
+                PgPt(s[n - 2], s[n - 1]));
             break;
 
         case 26:        // vvcurveto
@@ -1016,9 +1146,9 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
             given = n & 1? s[i++]: 0.0f;
             for ( ; i + 4 <= n; i += 4) {
                 a = rcurve(g, ctm, a,
-                        pg_pt(given, s[i + 0]),
-                        pg_pt(s[i + 1], s[i + 2]),
-                        pg_pt(0.0f, s[i + 3]));
+                        PgPt(given, s[i + 0]),
+                        PgPt(s[i + 1], s[i + 2]),
+                        PgPt(0.0f, s[i + 3]));
                 given = 0.0f;
             }
             break;
@@ -1028,9 +1158,9 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
             given = n & 1? s[i++]: 0.0f;
             for ( ; i + 4 <= n; i += 4) {
                 a = rcurve(g, ctm, a,
-                    pg_pt(s[i + 0], given),
-                    pg_pt(s[i + 1], s[i + 2]),
-                    pg_pt(s[i + 3], 0.0f));
+                    PgPt(s[i + 0], given),
+                    PgPt(s[i + 1], s[i + 2]),
+                    PgPt(s[i + 3], 0.0f));
                 given = 0.0f;
             }
             break;
@@ -1041,30 +1171,30 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
         case 30:        // vhcurveto
             for (i = 0; i + 4 <= n; i += 4) {
                 a = rcurve(g, ctm, a,
-                        pg_pt(0.0f, s[i + 0]),
-                        pg_pt(s[i + 1], s[i + 2]),
-                        pg_pt(s[i + 3], n - i == 5? s[i + 4]: 0.0f));
+                        PgPt(0.0f, s[i + 0]),
+                        PgPt(s[i + 1], s[i + 2]),
+                        PgPt(s[i + 3], n - i == 5? s[i + 4]: 0.0f));
                 i += 4;
                 if (i + 4 <= n)
                     a = rcurve(g, ctm, a,
-                        pg_pt(s[i + 0], 0.0f),
-                        pg_pt(s[i + 1], s[i + 2]),
-                        pg_pt(n - i == 5? s[i + 4]: 0.0f, s[i + 3]));
+                        PgPt(s[i + 0], 0.0f),
+                        PgPt(s[i + 1], s[i + 2]),
+                        PgPt(n - i == 5? s[i + 4]: 0.0f, s[i + 3]));
             }
             break;
 
         case 31:        // hvcurveto
             for (i = 0; i + 4 <= n; i += 4) {
                 a = rcurve(g, ctm, a,
-                    pg_pt(s[i + 0], 0.0f),
-                    pg_pt(s[i + 1], s[i + 2]),
-                    pg_pt(n - i == 5? s[i + 4]: 0.0f, s[i + 3]));
+                    PgPt(s[i + 0], 0.0f),
+                    PgPt(s[i + 1], s[i + 2]),
+                    PgPt(n - i == 5? s[i + 4]: 0.0f, s[i + 3]));
                 i += 4;
                 if (i + 4 <= n)
                     a = rcurve(g, ctm, a,
-                        pg_pt(0.0f, s[i + 0]),
-                        pg_pt(s[i + 1], s[i + 2]),
-                        pg_pt(s[i + 3], n - i == 5? s[i + 4]: 0.0f));
+                        PgPt(0.0f, s[i + 0]),
+                        PgPt(s[i + 1], s[i + 2]),
+                        PgPt(s[i + 3], n - i == 5? s[i + 4]: 0.0f));
             }
             break;
 
@@ -1078,7 +1208,7 @@ static void cffoutline(Pg *g, Pgfont *font, Pgmat ctm, unsigned glyph) {
     }
 
 done:
-    pg_close_path(g);
+    pg_close(g);
     return;
 
 fail:
@@ -1087,7 +1217,9 @@ fail:
 }
 
 
-static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned index) {
+PgFont*
+pg_open_otf_font(const uint8_t *data, size_t filesize, unsigned index)
+{
 
     if (!data || !filesize)
         return 0;
@@ -1350,7 +1482,7 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
     }
 
     // CMAP
-    uint16_t charmap[65536] = {0};
+    uint16_t *charmap = calloc(1, 65536 * sizeof *charmap);
     cursect = cmap;
     {
         bool    bmploaded = false;
@@ -1380,9 +1512,15 @@ static void *_init(Pgfont *font, const uint8_t *data, size_t filesize, unsigned 
             FAIL("CMAP_NO_FORMAT");
     }
 
-    pg_init_font(font, units, nglyphs, charmap);
+    return new(OTF,
+        .font = pg_init_font(&methods, data, filesize, index),
 
-    return new(otf,
+        .units = units,
+        .nglyphs = nglyphs,
+        .cmap = charmap,
+        .sx = 1.0f,
+        .sy = 1.0f,
+
         .cffver = cffver,
         .longloca = longloca,
         .nhmtx = nhmtx,
@@ -1403,22 +1541,34 @@ fail:
     return 0;
 }
 
-static void _free(Pgfont *font) {
-    (void) font;
+
+static void
+_free(PgFont *font)
+{
+    free(OTF(font)->cmap);
 }
 
-static float underline_dist(Pgfont *font) {
-    return 0.75f * pg_font_prop_float(font, PG_FONT_DESCENDER);
+
+static float
+underline_dist(PgFont *font)
+{
+    return 0.75f * pg_font_number(font, PG_FONT_DESCENDER);
 }
 
-static float underline_size(Pgfont *font) {
-    float d = pg_font_prop_float(font, PG_FONT_DESCENDER);
-    float w = pg_font_prop_float(font, PG_FONT_WEIGHT);
+
+static float
+underline_size(PgFont *font)
+{
+    float d = pg_font_number(font, PG_FONT_DESCENDER);
+    float w = pg_font_number(font, PG_FONT_WEIGHT);
     return d * (w / 2000.0f);
 }
 
+
 // Return -1 for sans serif, 1 for serif, 0 for anything else.
-static int serif_style(Pgfont *font) {
+static int
+serif_style(PgFont *font)
+{
     uint8_t         class = TB(os2, 30);
     const uint8_t   *panose = OTF(font)->os2.ptr + 32;
 
@@ -1436,7 +1586,7 @@ static int serif_style(Pgfont *font) {
                 8 <= class && class <= 9? -1:
                 0;
 
-    const char *family = pg_font_prop_string(font, PG_FONT_FAMILY);
+    const char *family = pg_font_string(font, PG_FONT_FAMILY);
     const char *middle = stristr(family, " sans ");
     const char *beginning = stristr(family, "sans ");
     const char *end = stristr(family, " sans");
@@ -1447,9 +1597,12 @@ static int serif_style(Pgfont *font) {
     return 0;
 }
 
-static float _propf(Pgfont *font, Pgfont_prop id) {
-    float sx = pg_get_font_scale(font).x;
-    float sy = pg_get_font_scale(font).y;
+
+static float
+_number(PgFont *font, PgFontProp id)
+{
+    float sx = OTF(font)->sx;
+    float sy = OTF(font)->sy;
 
     switch (id) {
     case PG_FONT_FORMAT:        return 0;
@@ -1467,19 +1620,19 @@ static float _propf(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_STYLE_CLASS:   return (float) TB(os2, 30);
     case PG_FONT_STYLE_SUBCLASS:return (float) TB(os2, 31);
     case PG_FONT_ANGLE:         return (float) (int32_t) TD(post, 4);
-    case PG_FONT_PANOSE_1:
-    case PG_FONT_PANOSE_2:
-    case PG_FONT_PANOSE_3:
-    case PG_FONT_PANOSE_4:
-    case PG_FONT_PANOSE_5:
-    case PG_FONT_PANOSE_6:
-    case PG_FONT_PANOSE_7:
-    case PG_FONT_PANOSE_8:
-    case PG_FONT_PANOSE_9:
-    case PG_FONT_PANOSE_10:
-        return (float) TB(os2, 32 + id - PG_FONT_PANOSE_1);
-    case PG_FONT_NGLYPHS:       return (float) pg_get_nglyphs(font);
-    case PG_FONT_EM:            return sy * pg_get_em_units(font);
+    case PG_FONT_PANOSE_1:      return (float) TB(os2, 32);
+    case PG_FONT_PANOSE_2:      return (float) TB(os2, 33);
+    case PG_FONT_PANOSE_3:      return (float) TB(os2, 34);
+    case PG_FONT_PANOSE_4:      return (float) TB(os2, 35);
+    case PG_FONT_PANOSE_5:      return (float) TB(os2, 36);
+    case PG_FONT_PANOSE_6:      return (float) TB(os2, 37);
+    case PG_FONT_PANOSE_7:      return (float) TB(os2, 38);
+    case PG_FONT_PANOSE_8:      return (float) TB(os2, 39);
+    case PG_FONT_PANOSE_9:      return (float) TB(os2, 40);
+    case PG_FONT_PANOSE_10:     return (float) TB(os2, 41);
+    case PG_FONT_NGLYPHS:       return (float) OTF(font)->nglyphs;
+    case PG_FONT_UNITS:         return OTF(font)->units;
+    case PG_FONT_EM:            return sy * OTF(font)->units;
     case PG_FONT_AVG_WIDTH:     return sx * (int16_t) TW(os2, 2);
     case PG_FONT_ASCENDER:      return sy * (int16_t) TW(os2, 68);
     case PG_FONT_DESCENDER:     return sy * (int16_t) TW(os2, 70);
@@ -1500,30 +1653,89 @@ static float _propf(Pgfont *font, Pgfont_prop id) {
     return 0.0f;
 }
 
-static const char *_props(Pgfont *font, Pgfont_prop id) {
-    char *buf = OTF(font)->prop_buf;
+static int
+_int(PgFont *font, PgFontProp id)
+{
+    int sx = (int) OTF(font)->sx;
+    int sy = (int) OTF(font)->sy;
+
+    switch (id) {
+    case PG_FONT_FORMAT:        return 0;
+    case PG_FONT_INDEX:         return (int) OTF(font)->fontindex;
+    case PG_FONT_NFONTS:        return (int) OTF(font)->nfonts;
+    case PG_FONT_IS_FIXED:      return (int) TD(post, 12);
+    case PG_FONT_IS_ITALIC:     return OTF(font)->italic;
+    case PG_FONT_IS_SERIF:      return serif_style(font) > 0;
+    case PG_FONT_IS_SANS_SERIF: return serif_style(font) < 0;
+    case PG_FONT_FAMILY:        return 0.0f;
+    case PG_FONT_STYLE:         return 0.0f;
+    case PG_FONT_FULL_NAME:     return 0.0f;
+    case PG_FONT_WEIGHT:        return TW(os2, 4);
+    case PG_FONT_WIDTH_CLASS:   return TW(os2, 6);
+    case PG_FONT_STYLE_CLASS:   return TB(os2, 30);
+    case PG_FONT_STYLE_SUBCLASS:return TB(os2, 31);
+    case PG_FONT_ANGLE:         return (int32_t) TD(post, 4);
+    case PG_FONT_PANOSE_1:      return TB(os2, 32);
+    case PG_FONT_PANOSE_2:      return TB(os2, 33);
+    case PG_FONT_PANOSE_3:      return TB(os2, 34);
+    case PG_FONT_PANOSE_4:      return TB(os2, 35);
+    case PG_FONT_PANOSE_5:      return TB(os2, 36);
+    case PG_FONT_PANOSE_6:      return TB(os2, 37);
+    case PG_FONT_PANOSE_7:      return TB(os2, 38);
+    case PG_FONT_PANOSE_8:      return TB(os2, 39);
+    case PG_FONT_PANOSE_9:      return TB(os2, 40);
+    case PG_FONT_PANOSE_10:     return TB(os2, 41);
+    case PG_FONT_NGLYPHS:       return (int) OTF(font)->nglyphs;
+    case PG_FONT_UNITS:         return (int) OTF(font)->units;
+    case PG_FONT_EM:            return sy * (int) OTF(font)->units;
+    case PG_FONT_AVG_WIDTH:     return sx * (int16_t) TW(os2, 2);
+    case PG_FONT_ASCENDER:      return sy * (int16_t) TW(os2, 68);
+    case PG_FONT_DESCENDER:     return sy * (int16_t) TW(os2, 70);
+    case PG_FONT_LINEGAP:       return sy * (int16_t) TW(os2, 72);
+    case PG_FONT_XHEIGHT:       return TW(os2, 0) >= 2? sy * (int16_t) TW(os2, 86): 0;
+    case PG_FONT_CAPHEIGHT:     return TW(os2, 0) >= 2? sy * (int16_t) TW(os2, 88): 0;
+    case PG_FONT_UNDERLINE:     return (int) underline_dist(font);
+    case PG_FONT_UNDERLINE_SIZE:return (int) underline_size(font);
+    case PG_FONT_SUB_SX:        return sy * (int16_t) TW(os2, 10);
+    case PG_FONT_SUB_SY:        return sy * (int16_t) TW(os2, 12);
+    case PG_FONT_SUB_X:         return sy * (int16_t) TW(os2, 14);
+    case PG_FONT_SUB_Y:         return sy * (int16_t) TW(os2, 16);
+    case PG_FONT_SUP_SX:        return sy * (int16_t) TW(os2, 18);
+    case PG_FONT_SUP_SY:        return sy * (int16_t) TW(os2, 20);
+    case PG_FONT_SUP_X:         return sy * (int16_t) TW(os2, 22);
+    case PG_FONT_SUP_Y:         return sy * (int16_t) TW(os2, 24);
+    }
+    return 0.0f;
+}
+
+
+static const char*
+_string(PgFont *font, PgFontProp id)
+{
+    uint8_t *buf = (uint8_t*) OTF(font)->prop_buf;
+    uint8_t *limit = buf + sizeof OTF(font)->prop_buf;
 
     switch (id) {
 
     case PG_FONT_FORMAT:        return  OTF(font)->cffver? "CFF": "TTF";
 
-    case PG_FONT_FAMILY:        return  getname(font, 16, buf)? buf:
-                                        getname(font, 1, buf)? buf:
+    case PG_FONT_FAMILY:        return  getname(font, 16, buf, limit)? (char*) buf:
+                                        getname(font, 1, buf, limit)? (char*) buf:
                                         "";
 
-    case PG_FONT_STYLE:         return  getname(font, 17, buf)? buf:
-                                        getname(font, 2, buf)? buf:
+    case PG_FONT_STYLE:         return  getname(font, 17, buf, limit)? (char*) buf:
+                                        getname(font, 2, buf, limit)? (char*) buf:
                                         "";
 
-    case PG_FONT_FULL_NAME:     return  getname(font, 4, buf)? buf:
-                                        getname(font, 3, buf)? buf:
+    case PG_FONT_FULL_NAME:     return  getname(font, 4, buf, limit)? (char*) buf:
+                                        getname(font, 3, buf, limit)? (char*) buf:
                                         "";
 
-    case PG_FONT_IS_FIXED:      return pg_font_prop_int(font, id)
+    case PG_FONT_IS_FIXED:      return pg_font_int(font, id)
                                         ? "Fixed Pitched":
                                         "Proportional";
 
-    case PG_FONT_IS_ITALIC:     return pg_font_prop_int(font, id)
+    case PG_FONT_IS_ITALIC:     return pg_font_int(font, id)
                                         ? "Italic":
                                         "Roman";
 
@@ -1575,6 +1787,7 @@ static const char *_props(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_NFONTS:
     case PG_FONT_ANGLE:
     case PG_FONT_NGLYPHS:
+    case PG_FONT_UNITS:
     case PG_FONT_EM:
     case PG_FONT_AVG_WIDTH:
     case PG_FONT_ASCENDER:
@@ -1592,92 +1805,128 @@ static const char *_props(Pgfont *font, Pgfont_prop id) {
     case PG_FONT_SUP_Y:
     case PG_FONT_SUP_SX:
     case PG_FONT_SUP_SY:
-        sprintf(buf, "%g", pg_font_prop_float(font, id));
-        return buf;
+        sprintf((char*) buf, "%g", pg_font_number(font, id));
+        return (char*) buf;
     }
+
     return "";
 }
 
-static void _glyph_path(Pg *g, Pgfont *font, Pgpt at, unsigned glyph) {
-
-    float adjust = 0.0f;
-
-    switch (pg_get_text_pos(g)) {
+static float
+adjust_y(PgFont *font, PgTextPos pos)
+{
+    switch (pos) {
 
     case PG_TEXT_POS_TOP:
-        adjust = pg_font_prop_float(font, PG_FONT_ASCENDER);
-        break;
+        return pg_font_number(font, PG_FONT_ASCENDER);
 
     case PG_TEXT_POS_BOTTOM:
-        adjust = pg_font_prop_float(font, PG_FONT_DESCENDER);
-        break;
+        return pg_font_number(font, PG_FONT_DESCENDER);
 
     case PG_TEXT_POS_BASELINE:
-        adjust = 0.0f;
-        break;
+        return 0.0f;
 
     case PG_TEXT_POS_CENTER:
-        adjust = (pg_font_prop_float(font, PG_FONT_ASCENDER) +
-                pg_font_prop_float(font, PG_FONT_DESCENDER)) * 0.5f;
-        break;
+        return (pg_font_number(font, PG_FONT_ASCENDER) +
+                pg_font_number(font, PG_FONT_DESCENDER)) * 0.5f;
     }
 
-    at = pg_add_pt(at, 0.0f, adjust);
+    return 0.0f;
+}
 
+static void
+apply_underline(Pg *g, PgFont *font, float x, float y, unsigned glyph)
+{
+    if (!g->s.underline)
+        return;
 
-    Pgpt   s = pg_get_font_scale(font);
+    float   w = pg_measure_glyph(font, glyph);
+    float   a = pg_font_number(font, PG_FONT_UNDERLINE);
+    float   t = pg_font_number(font, PG_FONT_UNDERLINE_SIZE);
 
-    if (s.x != 0.0f && s.y != 0.0f) {
-        Pgmat ctm = { s.x, 0.0f, 0.0f, -s.y, at.x, at.y };
-
-        if (OTF(font)->cffver == 0)
-            ttoutline(g, font, ctm, glyph);
-
-        else if (OTF(font)->cffver == 1)
-            cffoutline(g, font, ctm, glyph);
-
-        if (pg_get_underline(g)) {
-            float   w = pg_measure_glyph(font, glyph).x;
-            float   y = at.y - pg_font_prop_float(font, PG_FONT_UNDERLINE);
-            float   t = pg_font_prop_float(font, PG_FONT_UNDERLINE_SIZE);
-
-            // CFF and TTF tend to have opposite windings.
-            if (OTF(font)->cffver == 0) {
-                pg_move_to(g, at.x, y + t);
-                pg_rel_line_to(g, w, 0.0f);
-                pg_rel_line_to(g, 0.0f, -t);
-                pg_rel_line_to(g, -w, 0.0f);
-                pg_close_path(g);
-            }
-            else {
-                pg_move_to(g, at.x, y);
-                pg_rel_line_to(g, w, 0.0f);
-                pg_rel_line_to(g, 0.0f, t);
-                pg_rel_line_to(g, -w, 0.0f);
-                pg_close_path(g);
-            }
-        }
-
+    // CFF and TTF tend to have opposite windings.
+    if (OTF(font)->cffver == 0) {
+        pg_move(g, x, y - a + t);
+        pg_rline(g, w, 0.0f);
+        pg_rline(g, 0.0f, -t);
+        pg_rline(g, -w, 0.0f);
+        pg_close(g);
+    }
+    else {
+        pg_move(g, x, y - a);
+        pg_rline(g, w, 0.0f);
+        pg_rline(g, 0.0f, t);
+        pg_rline(g, -w, 0.0f);
+        pg_close(g);
     }
 }
 
-static Pgpt _measure_glyph(Pgfont *font, unsigned glyph) {
+static void
+_glyph_path(Pg *g, PgFont *font, float x, float y, unsigned glyph)
+{
+
+    y += adjust_y(font, g->s.text_pos);
+
+    float   sx = OTF(font)->sx;
+    float   sy = OTF(font)->sy;
+    PgTM    ctm = {
+                    sx,
+                    0.0f,
+                    0.0f,
+                    -sy,
+                    x,
+                    y
+                  };
+
+    if (sx == 0.0f || sy == 0.0f)
+        return;
+
+    if (OTF(font)->cffver == 0)
+        ttoutline(g, font, ctm, glyph);
+
+    else if (OTF(font)->cffver == 1)
+        cffoutline(g, font, ctm, glyph);
+
+    apply_underline(g, font, x, y, glyph);
+}
+
+static float
+_measure_glyph(PgFont *font, unsigned glyph)
+{
     unsigned    nhmtx = OTF(font)->nhmtx;
-    Pgpt        s = pg_get_font_scale(font);
-    float       adv = TW(hmtx, 4 * (glyph < nhmtx? glyph: nhmtx - 1)) * s.y;
+    float       raw = TW(hmtx, 4 * (glyph < nhmtx? glyph: nhmtx - 1));
 
-    return pg_pt(adv, pg_get_font_height(font));
+    return raw * OTF(font)->sx;
 }
 
-static const Pgfont_methods methods = {
-    _init,
-    _free,
-    _propf,
-    _props,
+static void
+_scale(PgFont *font, float sx, float sy)
+{
+    float units = OTF(font)->units;
+
+    if (units == 0.0f)
+        return;
+
+    OTF(font)->sx = sx / units;
+    OTF(font)->sy = sy / units;
+}
+
+static unsigned
+_get_glyph(PgFont *font, uint32_t codepoint)
+{
+    if (codepoint >= 65536)
+        return 0xfffd;
+
+    return OTF(font)->cmap[codepoint];
+}
+
+static const PgFontImpl methods = {
+    _get_glyph,
     _glyph_path,
     _measure_glyph,
+    _scale,
+    _number,
+    _int,
+    _string,
+    _free,
 };
-
-Pgfont *pg_open_otf_font(const uint8_t *data, size_t size, unsigned index) {
-    return pg_new_font(&methods, data, size, index);
-}

@@ -1,19 +1,23 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <GL/glew.h>
-#include <pg.h>
-#include <pg.internal.h>
+#include <pg3.h>
+#include <internal.h>
 
 #define BEZIER_LIMIT    10
 #define CLOSED          65536
 #define SUB(N)          ((N) & (CLOSED - 1))
+#define GL(G)           ((GL*) (G))
 
 typedef struct {
+    Pg          _;
     GLuint      prog, vsh, fsh;
     GLint       posloc, ctmloc;
 } GL;
 
+static const PgCanvasImpl methods;
 
 static const char *VERTEX_SHADER[] = {
     "#version 110",
@@ -35,7 +39,7 @@ static const char *FRAGMENT_SHADER[] = {
     "uniform float   ra;",
     "uniform float   rb;",
     "uniform float   stops[8];",
-    "uniform vec4    colours[8];",
+    "uniform vec4    colors[8];",
     "uniform int     nstops;",
     "",
     "vec4 lchtolab(vec4 lch) {",
@@ -69,43 +73,126 @@ static const char *FRAGMENT_SHADER[] = {
     "                b < 0.0031308? 12.92 * b: 1.055 * pow(b, 1.0 / 2.40) - 0.055,",
     "                rgb.w);",
     "}",
-    "vec4 convert(vec4 colour) {",
-    "    return  cspace == 0? gamma(colour):",
-    "            cspace == 1? gamma(xyztorgb(labtoxyz(lchtolab(colour)))):",
-    "            cspace == 2? gamma(xyztorgb(labtoxyz(colour))):",
-    "            cspace == 3? gamma(xyztorgb(colour)):",
-    "            gamma(colour);",
+    "vec4 convert(vec4 color) {",
+    "    return  cspace == 0? gamma(color):",
+    "            cspace == 1? gamma(xyztorgb(labtoxyz(lchtolab(color)))):",
+    "            cspace == 2? gamma(xyztorgb(labtoxyz(color))):",
+    "            cspace == 3? gamma(xyztorgb(color)):",
+    "            gamma(color);",
     "}",
-    "vec4 stopcolour(float t) {",
+    "vec4 stopcolor(float t) {",
     "    int i;",
     "    for (i = 0; i < nstops && t > stops[i]; i++) {}",
-    "    vec4 colour =   i == 0? colours[0]:",
-    "                    i == nstops? colours[nstops - 1]:",
-    "    mix(colours[i - 1],",
-    "        colours[i],",
+    "    vec4 color =   i == 0? colors[0]:",
+    "                    i == nstops? colors[nstops - 1]:",
+    "    mix(colors[i - 1],",
+    "        colors[i],",
     "        (t - stops[i - 1]) / (stops[i] - stops[i - 1]));",
-    "    return convert(colour);",
+    "    return convert(color);",
     "}",
     "void main() {",
     "    if (nstops == 1)",
-    "        gl_FragColor = convert(colours[0]);",
+    "        gl_FragColor = convert(colors[0]);",
     "    else if (type == 2) // Radial gradient.",
-    "        gl_FragColor = stopcolour(length(vec2(gl_FragCoord) - a) / (rb - ra));",
+    "        gl_FragColor = stopcolor(length(vec2(gl_FragCoord) - a) / (rb - ra));",
     "    else { // Linear gradient.",
     "        vec2 dv = b - a;",
     "        vec2 dp = vec2(gl_FragCoord) - a;",
     "        float t = dot(dv, dp) / dot(dv, dv);",
-    "        gl_FragColor = stopcolour(t);",
+    "        gl_FragColor = stopcolor(t);",
     "    }",
     "}",
     0
 };
 
-static inline Pgpt perp(Pgpt p) {
-    return pg_pt(-p.y, p.x);
+
+static PgColor
+lch_to_lab(PgColor lch)
+{
+    float c = lch.y;
+    float h = lch.z * 2.0f * 3.14159f;
+    return (PgColor) {lch.x, c * cosf(h), c * sinf(h), lch.a};
 }
 
-static GLuint make_buffer(GLenum target, const void *data, size_t size) {
+
+static PgColor
+lab_to_xyz(PgColor lab)
+{
+    float l = lab.x;
+    float y = (l + 16.0f) / 116.0f;
+    float x = y + lab.y / 500.0f;
+    float z = y - lab.z / 200.0f;
+    x = x > 24.0f / 116.0f? x*x*x: (x - 16.0f/116.0f) * 108.0f/841.0f;
+    y = y > 24.0f / 116.0f? y*y*y: (y - 16.0f/116.0f) * 108.0f/841.0f;
+    z = z > 24.0f / 116.0f? z*z*z: (z - 16.0f/116.0f) * 108.0f/841.0f;
+    return (PgColor) {x * 950.4f, y * 1000.0f, z * 1088.8f, lab.a};
+}
+
+
+static PgColor
+xyz_to_rgb(PgColor xyz)
+{
+    float x = xyz.x;
+    float y = xyz.y;
+    float z = xyz.z;
+    float r = x * +3.2404542f + y * -1.5371385f + z * -0.4985314f;
+    float g = x * -0.9692660f + y * +1.8760108f + z * +0.0415560f;
+    float b = x * +0.0556434f + y * -0.2040259f + z * +1.0572252f;
+    return (PgColor) {r, g, b, xyz.a};
+}
+
+
+static PgColor
+gamma(PgColor rgb)
+{
+    float r = rgb.x;
+    float g = rgb.y;
+    float b = rgb.z;
+    return (PgColor) {
+        r < 0.0031308f? 12.92f * r: 1.055f * powf(r, 1.0f / 2.20f) - 0.055f,
+        g < 0.0031308f? 12.92f * g: 1.055f * powf(g, 1.0f / 2.20f) - 0.055f,
+        b < 0.0031308f? 12.92f * b: 1.055f * powf(b, 1.0f / 2.20f) - 0.055f,
+        rgb.a
+    };
+}
+
+
+static PgColor
+convert_color(PgColorSpace cspace, PgColor color)
+{
+    return  cspace == 0? gamma(color):
+            cspace == 1? gamma(xyz_to_rgb(lab_to_xyz(lch_to_lab(color)))):
+            cspace == 2? gamma(xyz_to_rgb(lab_to_xyz(color))):
+            cspace == 3? gamma(xyz_to_rgb(color)):
+            color;
+}
+
+
+
+static inline PgPt
+perp(PgPt p)
+{
+    return PgPt(-p.y, p.x);
+}
+
+static inline PgPt
+normalize(PgPt p)
+{
+    float invmag = 1.0f / sqrtf(p.x * p.x + p.y * p.y);
+    return PgPt(p.x * invmag, p.y * invmag);
+}
+
+static inline float
+dot(PgPt a, PgPt b)
+{
+    return a.x * b.x + a.y * b.y;
+}
+
+
+
+static GLuint
+make_buffer(GLenum target, const void *data, size_t size)
+{
     GLuint buf;
     glGenBuffers(1, &buf);
     glBindBuffer(target, buf);
@@ -113,7 +200,10 @@ static GLuint make_buffer(GLenum target, const void *data, size_t size) {
     return buf;
 }
 
-static GLuint make_shader(GLenum type, const GLchar **srcarray) {
+
+static GLuint
+make_shader(GLenum type, const GLchar **srcarray)
+{
     char    *src = 0;
     GLsizei size = 0;
     for (unsigned i = 0; srcarray[i]; i++) {
@@ -143,7 +233,10 @@ static GLuint make_shader(GLenum type, const GLchar **srcarray) {
     return shader;
 }
 
-static GLuint make_program(GLuint vshader, GLuint fshader) {
+
+static GLuint
+make_program(GLuint vshader, GLuint fshader)
+{
     GLint   ok;
     GLuint  program = glCreateProgram();
     glAttachShader(program, vshader);
@@ -160,18 +253,20 @@ static GLuint make_program(GLuint vshader, GLuint fshader) {
     return program;
 }
 
-static void set_coords(Pg *g) {
-    GL *gl = pg_get_canvas_impl(g);
-    Pgpt sz = pg_get_size(g);
+
+static void
+set_coords(Pg *g)
+{
+    GL *gl = GL(g);
+    PgPt sz = g->size;
 
     glUseProgram(gl->prog);
 
-    Pgrect  r = pg_get_clip(g);
     glEnable(GL_SCISSOR_TEST);
-    glScissor((GLint) r.p.x,
-              (GLint) (sz.y - r.p.y - r.size.y),
-              (GLsizei) r.size.x,
-              (GLsizei) r.size.y);
+    glScissor((GLint) g->s.clip_x,
+              (GLint) (sz.y - g->s.clip_y - g->s.clip_sy),
+              (GLsizei) g->s.clip_sx,
+              (GLsizei) g->s.clip_sy);
 
     float ctm[] = { 2.0f / sz.x, 0.0f, 0.0f,
                     0.0f, -2.0f / sz.y, 0.0f,
@@ -179,66 +274,65 @@ static void set_coords(Pg *g) {
     glUniformMatrix3fv(gl->ctmloc, 1, false, ctm);
 }
 
-static void set_paint(Pg *g, Pgpaint paint) {
-    GL      *gl = pg_get_canvas_impl(g);
+
+static void
+set_paint(Pg *g, const PgPaint *paint)
+{
+    GL      *gl = GL(g);
     GLuint  prog = gl->prog;
 
-    glUniform1i(glGetUniformLocation(prog, "nstops"), paint.nstops);
+    glUniform1i(glGetUniformLocation(prog, "nstops"), paint->nstops);
 
-    for (unsigned i = 0; i < paint.nstops; i++) {
+    for (unsigned i = 0; i < paint->nstops; i++) {
         char tmp[16];
-        snprintf(tmp, sizeof tmp, "colours[%d]", i);
+        snprintf(tmp, sizeof tmp, "colors[%d]", i);
         glUniform4f(glGetUniformLocation(prog, tmp),
-            paint.colours[i].x,
-            paint.colours[i].y,
-            paint.colours[i].z,
-            paint.colours[i].a);
+            paint->colors[i].x,
+            paint->colors[i].y,
+            paint->colors[i].z,
+            paint->colors[i].a);
 
         snprintf(tmp, sizeof tmp, "stops[%d]", i);
-        glUniform1f(glGetUniformLocation(prog, tmp), paint.stops[i]);
+        glUniform1f(glGetUniformLocation(prog, tmp), paint->stops[i]);
     }
 
-    float h = pg_get_size(g).y;
-    glUniform1i(glGetUniformLocation(prog, "type"), paint.type);
-    glUniform1i(glGetUniformLocation(prog, "cspace"), paint.cspace);
-    glUniform2f(glGetUniformLocation(prog, "a"), paint.a.x, h - paint.a.y);
-    glUniform2f(glGetUniformLocation(prog, "b"), paint.b.x, h - paint.b.y);
-    glUniform1f(glGetUniformLocation(prog, "ra"), paint.ra);
-    glUniform1f(glGetUniformLocation(prog, "rb"), paint.rb);
+    float h = g->size.y;
+    glUniform1i(glGetUniformLocation(prog, "type"), paint->type);
+    glUniform1i(glGetUniformLocation(prog, "cspace"), paint->cspace);
+    glUniform2f(glGetUniformLocation(prog, "a"), paint->a.x, h - paint->a.y);
+    glUniform2f(glGetUniformLocation(prog, "b"), paint->b.x, h - paint->b.y);
+    glUniform1f(glGetUniformLocation(prog, "ra"), paint->ra);
+    glUniform1f(glGetUniformLocation(prog, "rb"), paint->rb);
 }
 
-static void *_init(Pg *g) {
-    (void) g;
-    glewInit();
-    GLuint  vsh = make_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
-    GLuint  fsh = make_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
-    GLuint  prog = make_program(vsh, fsh);
-    GLint   posloc = glGetAttribLocation(prog, "pos");
-    GLint   ctmloc = glGetUniformLocation(prog, "ctm");
-    return new(GL, prog, vsh, fsh, posloc, ctmloc);
-}
 
-static void _free(Pg *g) {
-    GL *gl = pg_get_canvas_impl(g);
+static void
+_free(Pg *g)
+{
+    GL *gl = GL(g);
     glDeleteShader(gl->vsh);
     glDeleteShader(gl->fsh);
     glDeleteProgram(gl->prog);
     free(gl);
 }
 
-static void _clear(Pg *g, Pgpaint paint) {
 
-    if (paint.nstops == 1) {
+static void
+_clear(Pg *g)
+{
+    const PgPaint *paint = g->s.clear;
+
+    if (paint->nstops == 1) {
         set_coords(g);
 
-        Pgcolor c = pg_convert_color(paint.cspace, paint.colours[0]);
+        PgColor c = convert_color(paint->cspace, paint->colors[0]);
         glClearColor(c.x, c.y, c.z, c.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }
 
     else {
-        GL      *gl = pg_get_canvas_impl(g);
-        Pgpt    sz = pg_get_size(g);
+        GL      *gl = GL(g);
+        PgPt    sz = g->size;
 
         set_coords(g);
         set_paint(g, paint);
@@ -262,6 +356,7 @@ static void _clear(Pg *g, Pgpaint paint) {
     }
 }
 
+
 /*
     Flatten path into line segments.
     If `sub[i]` is the start of a subpath, `sub[i+1]` is the exclusive end.
@@ -270,51 +365,51 @@ static void _clear(Pg *g, Pgpaint paint) {
 */
 static void
 flatten(Pg *g,
-        Pgpt **pverts,
+        PgPt **pverts,
         unsigned *pnverts,
         unsigned **psubs,
         unsigned *pnsubs)
 {
-    Pgpt        *verts = malloc(65536 * sizeof *verts);
+    PgPt        *verts = malloc(65536 * sizeof *verts);
     unsigned    *subs = malloc(65536 * sizeof *subs);
     unsigned    nverts = 0;
     unsigned    nsubs = 0;
-    Pgmat       ctm = pg_get_ctm(g);
-    Pgpt        home = pg_apply_mat(ctm, pg_pt(0.0f, 0.0f));
-    Pgpt        cur = home;
-    Pgpath      path = pg_get_path(g);
+    PgTM        ctm = g->s.ctm;
+    PgPt        home = pg_apply_tm(ctm, PgPt(0.0f, 0.0f));
+    PgPt        cur = home;
+    PgPath      path = *g->path;
 
     for (unsigned i = 0; i < path.nparts; i++) {
         if (nverts >= 65536 - (1 << BEZIER_LIMIT))
             break;
 
-        Pgpt    *pts = path.parts[i].pt;
-        switch (path.parts[i].form) {
+        PgPt    *pts = path.parts[i].pt;
+        switch (path.parts[i].type) {
         case PG_PART_MOVE:
-            cur = home = verts[nverts++] = pg_apply_mat(ctm, pts[0]);
+            cur = home = verts[nverts++] = pg_apply_tm(ctm, pts[0]);
             subs[nsubs++] = nverts - 1;
             break;
         case PG_PART_LINE:
-            cur = verts[nverts++] = pg_apply_mat(ctm, pts[0]);
+            cur = verts[nverts++] = pg_apply_tm(ctm, pts[0]);
             break;
         case PG_PART_CURVE3:
             nverts += flatten3(verts + nverts,
                             cur,
-                            pg_apply_mat(ctm, pts[0]),
-                            pg_apply_mat(ctm, pts[1]),
-                            pg_get_flatness(g) * 0.5f,
+                            pg_apply_tm(ctm, pts[0]),
+                            pg_apply_tm(ctm, pts[1]),
+                            g->s.flatness * 0.5f,
                             BEZIER_LIMIT);
-            cur = pg_apply_mat(ctm, pts[1]);
+            cur = pg_apply_tm(ctm, pts[1]);
             break;
         case PG_PART_CURVE4:
             nverts += flatten4(verts + nverts,
                             cur,
-                            pg_apply_mat(ctm, pts[0]),
-                            pg_apply_mat(ctm, pts[1]),
-                            pg_apply_mat(ctm, pts[2]),
-                            pg_get_flatness(g) * 0.5f,
+                            pg_apply_tm(ctm, pts[0]),
+                            pg_apply_tm(ctm, pts[1]),
+                            pg_apply_tm(ctm, pts[2]),
+                            g->s.flatness * 0.5f,
                             BEZIER_LIMIT);
-            cur = pg_apply_mat(ctm, pts[2]);
+            cur = pg_apply_tm(ctm, pts[2]);
             break;
         case PG_PART_CLOSE:
             verts[nverts++] = cur = home;
@@ -330,9 +425,12 @@ flatten(Pg *g,
     *pnsubs = nsubs;
 }
 
-static void _fill(Pg *g) {
-    GL          *gl = pg_get_canvas_impl(g);
-    Pgpt        *verts;
+
+static void
+_fill(Pg *g)
+{
+    GL          *gl = GL(g);
+    PgPt        *verts;
     unsigned    *subs;
     unsigned    nverts;
     unsigned    nsubs;
@@ -345,7 +443,7 @@ static void _fill(Pg *g) {
     }
 
     set_coords(g);
-    set_paint(g, pg_get_fill(g));
+    set_paint(g, g->s.fill);
 
     /*
         Draw shape to stencil buffer by fanning triangles from a single vertex.
@@ -359,7 +457,7 @@ static void _fill(Pg *g) {
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(gl->posloc);
 
-    if (pg_get_fill_rule(g) == PG_EVEN_ODD_RULE) {
+    if (g->s.fill_rule == PG_EVEN_ODD_RULE) {
 
         glColorMask(0, 0, 0, 0);
         glEnable(GL_STENCIL_TEST);
@@ -403,11 +501,12 @@ static void _fill(Pg *g) {
 
     // Draw a quad over mask only placing pixels where the stencil bit is set.
 
-    Pgrect bb = pg_get_bbox(g);
-    GLfloat quadverts[] = {bb.p.x, bb.p.y,
-                           bb.p.x + bb.size.x, bb.p.y,
-                           bb.p.x, bb.p.y + bb.size.y,
-                           bb.p.x + bb.size.x, bb.p.y + bb.size.y};
+    PgPt    min = g->path->min;
+    PgPt    max = add(min, g->path->max);
+    GLfloat quadverts[] = {min.x, min.y,
+                           max.x, min.y,
+                           min.x, max.y,
+                           max.x, max.y};
 
     GLuint quads = make_buffer(GL_ARRAY_BUFFER, quadverts, 8 * sizeof *quadverts);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
@@ -425,79 +524,85 @@ static void _fill(Pg *g) {
     free(subs);
 }
 
+
 // Draw the line segment p1-p2 considering the angle of p0-p1 and p2-p3.
 static inline unsigned
-miter(Pgpt w,
-      Pgpt p0,
-      Pgpt p1,
-      Pgpt p2,
-      Pgpt p3,
-      Pgpt *out,
+miter(PgPt w,
+      PgPt p0,
+      PgPt p1,
+      PgPt p2,
+      PgPt p3,
+      PgPt *out,
       unsigned n)
 {
-    Pgpt vp = pg_normalize(pg_sub_pts(p1, p0));
-    Pgpt vc = pg_normalize(pg_sub_pts(p2, p1));
-    Pgpt vn = pg_normalize(pg_sub_pts(p3, p2));
-    Pgpt ni = pg_normalize(pg_add_pts(vp, vc));
-    Pgpt no = pg_normalize(pg_add_pts(vc, vn));
-    float mi = 1.0f / pg_dot(ni, vc);
-    float mo = 1.0f / pg_dot(no, vc);
-    Pgpt a = pg_sub_pts(p1, pg_mul_pts(perp(ni), pg_scale_pt(w, mi)));
-    Pgpt b = pg_add_pts(p1, pg_mul_pts(perp(ni), pg_scale_pt(w, mi)));
-    Pgpt c = pg_sub_pts(p2, pg_mul_pts(perp(no), pg_scale_pt(w, mo)));
-    Pgpt d = pg_add_pts(p2, pg_mul_pts(perp(no), pg_scale_pt(w, mo)));
+    PgPt vp = normalize(sub(p1, p0));
+    PgPt vc = normalize(sub(p2, p1));
+    PgPt vn = normalize(sub(p3, p2));
+    PgPt ni = normalize(add(vp, vc));
+    PgPt no = normalize(add(vc, vn));
+    float mi = 1.0f / dot(ni, vc);
+    float mo = 1.0f / dot(no, vc);
+    PgPt a = sub(p1, mul(perp(ni), scale_pt(w, mi)));
+    PgPt b = add(p1, mul(perp(ni), scale_pt(w, mi)));
+    PgPt c = sub(p2, mul(perp(no), scale_pt(w, mo)));
+    PgPt d = add(p2, mul(perp(no), scale_pt(w, mo)));
     out[n++] = a, out[n++] = b, out[n++] = c;
     out[n++] = b, out[n++] = c, out[n++] = d;
     return n;
 }
 
+
 static inline unsigned
-startcap(Pgpt w,
-         Pgpt cap,
-         Pgpt p1,
-         Pgpt p2,
-         Pgpt p3,
-         Pgpt *out,
+startcap(PgPt w,
+         PgPt cap,
+         PgPt p1,
+         PgPt p2,
+         PgPt p3,
+         PgPt *out,
          unsigned n)
 {
-    Pgpt vc = pg_normalize(pg_sub_pts(p2, p1));
-    Pgpt vn = pg_normalize(pg_sub_pts(p3, p2));
-    Pgpt no = pg_normalize(pg_add_pts(vc, vn));
-    float mo = 1.0f / pg_dot(no, vc);
-    Pgpt a = pg_sub_pts(pg_sub_pts(p1, pg_mul_pts(perp(vc), w)), pg_mul_pts(vc, cap));
-    Pgpt b = pg_sub_pts(pg_add_pts(p1, pg_mul_pts(perp(vc), w)), pg_mul_pts(vc, cap));
-    Pgpt c = pg_sub_pts(p2, pg_mul_pts(perp(no), pg_scale_pt(w, mo)));
-    Pgpt d = pg_add_pts(p2, pg_mul_pts(perp(no), pg_scale_pt(w, mo)));
+    PgPt vc = normalize(sub(p2, p1));
+    PgPt vn = normalize(sub(p3, p2));
+    PgPt no = normalize(add(vc, vn));
+    float mo = 1.0f / dot(no, vc);
+    PgPt a = sub(sub(p1, mul(perp(vc), w)), mul(vc, cap));
+    PgPt b = sub(add(p1, mul(perp(vc), w)), mul(vc, cap));
+    PgPt c = sub(p2, mul(perp(no), scale_pt(w, mo)));
+    PgPt d = add(p2, mul(perp(no), scale_pt(w, mo)));
     out[n++] = a, out[n++] = b, out[n++] = c;
     out[n++] = b, out[n++] = c, out[n++] = d;
     return n;
 }
+
 
 static inline unsigned
-endcap(Pgpt w,
-       Pgpt cap,
-       Pgpt p0,
-       Pgpt p1,
-       Pgpt p2,
-       Pgpt *out,
+endcap(PgPt w,
+       PgPt cap,
+       PgPt p0,
+       PgPt p1,
+       PgPt p2,
+       PgPt *out,
        unsigned n)
 {
-    Pgpt vp = pg_normalize(pg_sub_pts(p1, p0));
-    Pgpt vc = pg_normalize(pg_sub_pts(p2, p1));
-    Pgpt ni = pg_normalize(pg_add_pts(vp, vc));
-    float mi = 1.0f / pg_dot(ni, vc);
-    Pgpt a = pg_sub_pts(p1, pg_mul_pts(perp(ni), pg_scale_pt(w, mi)));
-    Pgpt b = pg_add_pts(p1, pg_mul_pts(perp(ni), pg_scale_pt(w, mi)));
-    Pgpt c = pg_add_pts(pg_sub_pts(p2, pg_mul_pts(perp(vc), w)), pg_mul_pts(vc, cap));
-    Pgpt d = pg_add_pts(pg_add_pts(p2, pg_mul_pts(perp(vc), w)), pg_mul_pts(vc, cap));
+    PgPt vp = normalize(sub(p1, p0));
+    PgPt vc = normalize(sub(p2, p1));
+    PgPt ni = normalize(add(vp, vc));
+    float mi = 1.0f / dot(ni, vc);
+    PgPt a = sub(p1, mul(perp(ni), scale_pt(w, mi)));
+    PgPt b = add(p1, mul(perp(ni), scale_pt(w, mi)));
+    PgPt c = add(sub(p2, mul(perp(vc), w)), mul(vc, cap));
+    PgPt d = add(add(p2, mul(perp(vc), w)), mul(vc, cap));
     out[n++] = a, out[n++] = b, out[n++] = c;
     out[n++] = b, out[n++] = c, out[n++] = d;
     return n;
 }
 
-static void _stroke(Pg *g) {
-    GL          *gl = pg_get_canvas_impl(g);
-    Pgpt        *verts;
+
+static void
+_stroke(Pg *g)
+{
+    GL          *gl = GL(g);
+    PgPt        *verts;
     unsigned    *subs;
     unsigned    nverts;
     unsigned    nsubs;
@@ -505,17 +610,18 @@ static void _stroke(Pg *g) {
     flatten(g, &verts, &nverts, &subs, &nsubs);
 
     // Line width is not in device coordinates, so scale it with CTM.
-    Pgmat       strokectm = pg_get_ctm(g);
-    strokectm.e = 0.0f;
-    strokectm.f = 0.0f;
-    float       lw = 0.5f * pg_get_line_width(g);
-    Pgpt        w = pg_apply_mat(strokectm, pg_pt(lw, lw));
+    PgTM    strokectm = { g->s.ctm.a, g->s.ctm.b, g->s.ctm.c, g->s.ctm.d, 0.0f, 0.0f };
+    float   lw = 0.5f * g->s.line_width;
+    PgPt    w = pg_apply_tm(strokectm, PgPt(lw, lw));
 
-    Pgpt cap = pg_get_line_cap(g) == PG_BUTT_CAP? pg_pt(0.0f, 0.0f):
-               pg_get_line_cap(g) == PG_SQUARE_CAP? w:
-               pg_pt(0.0f, 0.0f);
+    PgPt    cap = g->s.line_cap == PG_BUTT_CAP? PgPt(0.0f, 0.0f):
+                  g->s.line_cap == PG_SQUARE_CAP? w:
+                  PgPt(0.0f, 0.0f);
 
-    Pgpt        *final = malloc(6 * nverts * sizeof *final);
+
+    // Construct each subpath.
+
+    PgPt        *final = malloc(6 * nverts * sizeof *final);
     unsigned    nfinal = 0;
 
     for (unsigned s = 0; s < nsubs; s++) {
@@ -524,43 +630,56 @@ static void _stroke(Pg *g) {
         unsigned    end = SUB(subs[s + 1]);
 
         if (closed) {
+            // There are no caps on this line.
             end -= 1;
             nfinal = miter(w,
                             verts[end - 1], verts[start],
                             verts[start + 1], verts[start + 2],
                             final, nfinal);
+
             for (unsigned i = start + 1; i + 2 <= end; i++)
                 nfinal = miter(w,
                                 verts[i - 1], verts[i],
                                 verts[i + 1], verts[i + 2],
                                 final, nfinal);
+
             nfinal = miter(w,
                             verts[end - 2], verts[end - 1],
                             verts[start], verts[start + 1],
                             final, nfinal);
         }
+
         else if (end - start <= 2) {
+
+            // There is only one segment.
+
             if (end - start == 2) {
-                Pgpt nv = pg_normalize(pg_sub_pts(verts[1], verts[0]));
-                Pgpt wv = pg_mul_pts(perp(nv), w);
-                Pgpt cv = pg_mul_pts(nv, cap);
-                Pgpt a = pg_sub_pts(pg_sub_pts(verts[0], wv), cv);
-                Pgpt b = pg_sub_pts(pg_add_pts(verts[0], wv), cv);
-                Pgpt c = pg_add_pts(pg_sub_pts(verts[1], wv), cv);
-                Pgpt d = pg_add_pts(pg_add_pts(verts[1], wv), cv);
+                PgPt nv = normalize(sub(verts[1], verts[0]));
+                PgPt wv = mul(perp(nv), w);
+                PgPt cv = mul(nv, cap);
+                PgPt a = sub(sub(verts[0], wv), cv);
+                PgPt b = sub(add(verts[0], wv), cv);
+                PgPt c = add(sub(verts[1], wv), cv);
+                PgPt d = add(add(verts[1], wv), cv);
                 final[nfinal++] = a, final[nfinal++] = b, final[nfinal++] = c;
                 final[nfinal++] = b, final[nfinal++] = c, final[nfinal++] = d;
             }
         }
+
         else {
+
+            // There are multiple segments.
+
             nfinal = startcap(w, cap,
                                 verts[start], verts[start + 1],
                                 verts[start + 2], final, nfinal);
+
             for (unsigned i = start + 1; i + 2 < end; i++)
                 nfinal = miter(w,
                                 verts[i - 1], verts[i],
                                 verts[i + 1], verts[i + 2],
                                 final, nfinal);
+
             nfinal = endcap(w, cap,
                             verts[end - 3], verts[end - 2],
                             verts[end - 1], final, nfinal);
@@ -568,7 +687,7 @@ static void _stroke(Pg *g) {
     }
 
     set_coords(g);
-    set_paint(g, pg_get_stroke(g));
+    set_paint(g, g->s.stroke);
 
     GLuint  src = make_buffer(GL_ARRAY_BUFFER, final, nfinal * sizeof *final);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
@@ -585,20 +704,49 @@ static void _stroke(Pg *g) {
     free(final);
 }
 
-static void _fill_stroke(Pg *g) {
+
+static void
+_fill_stroke(Pg *g)
+{
     _fill(g);
     _stroke(g);
 }
 
-static const Pgcanvas_methods methods = {
-    .init = _init,
-    .free = _free,
-    .clear = _clear,
-    .fill = _fill,
-    .stroke = _stroke,
-    .fill_stroke = _fill_stroke,
-};
 
-Pg *pg_opengl_canvas(unsigned width, unsigned height) {
-    return pg_new_canvas(&methods, width, height);
+static void
+_resize(Pg *g, float width, float height)
+{
+    (void) g;
+    (void) width;
+    (void) height;
 }
+
+
+Pg*
+pg_opengl(float width, float height)
+{
+    glewInit();
+
+    GLuint  vsh = make_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
+    GLuint  fsh = make_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
+    GLuint  prog = make_program(vsh, fsh);
+    GLint   posloc = glGetAttribLocation(prog, "pos");
+    GLint   ctmloc = glGetUniformLocation(prog, "ctm");
+
+    return new(GL,
+                pg_init_canvas(&methods, width, height),
+                prog,
+                vsh,
+                fsh,
+                posloc,
+                ctmloc);
+}
+
+static const PgCanvasImpl methods = {
+    _clear,
+    _fill,
+    _stroke,
+    _fill_stroke,
+    _resize,
+    _free,
+};

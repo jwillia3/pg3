@@ -9,11 +9,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "pg.h"
-#include "pg.internal.h"
+#include <pg3.h>
+#include <internal.h>
 
 
-static char *xdg_data_home(char tmp[FILENAME_MAX + 1]) {
+static char*
+xdg_data_home(char tmp[FILENAME_MAX + 1])
+{
     if (getenv("XDG_DATA_HOME"))
         return strcpy(tmp, getenv("XDG_DATA_HOME"));
 
@@ -25,32 +27,45 @@ static char *xdg_data_home(char tmp[FILENAME_MAX + 1]) {
     return strcat(tmp, "");
 }
 
-void *_pgmap_file(const char *path, size_t *size) {
+
+void*
+_pgmap_file(const char *path, size_t *size)
+{
     if (!path)
         return 0;
 
-    int fd = open(path, O_RDONLY);
+    struct stat st;
+    int         fd = open(path, O_RDONLY);
+
     if (fd < 0)
         return 0;
 
-    struct stat st;
     if (fstat(fd, &st) < 0)
         return 0;
+
     *size = (size_t) st.st_size;
 
     void *data = mmap(0, *size, PROT_READ, MAP_PRIVATE, fd, 0);
+
     close(fd);
+
     if (data == MAP_FAILED)
         return 0;
 
     return data;
 }
 
-void _pgunmap_file(void *ptr, size_t size) {
+
+void
+_pgunmap_file(void *ptr, size_t size)
+{
     munmap(ptr, size);
 }
 
-char **_pgget_font_files() {
+
+char **
+_pgget_font_files(void)
+{
     char        path[FILENAME_MAX * 2 + 1];
     char        *queue[256];
     unsigned    nqueue = 0;

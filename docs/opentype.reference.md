@@ -1,4 +1,11 @@
-# TrueType Collection Header
+
+OpenType Field Reference
+----------------------------------------------------------------
+
+
+TrueType Collection Header
+----------------------------------------------------------------
+
         TTC Header 1.0
         0   4   ttcTag
         4   2   majorVersion
@@ -6,7 +13,9 @@
         8   4   numFonts
         12  4*  offsetTable[numFonts]
 
-# sfnt File Header.
+
+sfnt File Header
+----------------------------------------------------------------
         Offset Table
         0   4   sfntVersion
         4   2   numTables
@@ -14,13 +23,17 @@
         8   2   entrySelector
         10  2   rangeShift
 
-# Table Record Entry
+
+Table Record Entry
+----------------------------------------------------------------
         0   4   tableTag
         4   4   checksum
         8   4   offset
         12  4   length
 
-# (HEAD) Font Header Table
+
+(HEAD) Font Header Table
+----------------------------------------------------------------
         0   2   majorVersion
         2   2   minorVersion
         4   4   fontRevision
@@ -40,7 +53,9 @@
         50  2   indexToLocFormat
         52  2   glyphDataFormat
 
-# (HHEA) Horizontal Header Table
+
+(HHEA) Horizontal Header Table
+----------------------------------------------------------------
         0   2   majorVersion
         2   2   minorVersion
         4   2   ascender
@@ -57,7 +72,9 @@
         32  2   metricDataFormat
         34  2   numberofHMetrics
 
-# (MAXP) Maximum Profile
+
+(MAXP) Maximum Profile
+----------------------------------------------------------------
         0   4   version
         4   2   numGlyphs
         6   2   maxPoints
@@ -74,7 +91,9 @@
         28  2   maxComponentElements
         30  2   maxComponentDepth
 
-# (POST) Postscript Table
+
+(POST) Postscript Table
+----------------------------------------------------------------
         0   4   version
         4   4   italicAngle
         8   2   underlinePosition
@@ -88,7 +107,9 @@
         34  2*  glyphNameIndex[numGlyphs]   Version 2
         -   -   pascal strings              Version 2
 
-# (CMAP) Character to Glyph Index Mapping Table
+
+(CMAP) Character to Glyph Index Mapping Table
+----------------------------------------------------------------
         0   2   version
         2   2   numTables
         4   -   encodingRecrods[numTables]
@@ -113,7 +134,9 @@
         -   2*  idRangeOffset[segCount]
         -   2   glyphIdArray[]
 
-# (NAME) Naming Table Format 0 (Format 1 appears to be rare.)
+
+(NAME) Naming Table Format 0 (Format 1 appears to be rare.)
+----------------------------------------------------------------
         0   2   format
         2   2   count
         4   2   stringOffset
@@ -128,7 +151,9 @@
         8   2   length
         10  2   offset
 
-# (OS/2) OS/2 and Windows Metrics Table
+
+(OS/2) OS/2 and Windows Metrics Table
+----------------------------------------------------------------
         0   2   version (0-5)
         2   2   xAvgCharWidth
         4   2   usWeightClass
@@ -169,7 +194,9 @@
         96  2   usLowerOpticalPointSize Version 5
         98  2   usUpperOpticalPointSize Version 5
 
-# (GLYF) Glyph Headers
+
+(GLYF) Glyph Headers
+----------------------------------------------------------------
         0   2   numberOfControus
         2   2   xMin
         4   2   yMin
