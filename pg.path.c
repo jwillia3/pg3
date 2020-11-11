@@ -47,16 +47,7 @@ addpart(PgPath *path,
     PgPart part = { type, {{ax, ay}, {bx, by}, {cx, cy} } };
     path->parts[path->nparts++] = part;
 
-    // Calculate the bounding box.
-    for (unsigned i = 0; i < pg_partcount(part.type); i++) {
-        path->min.x = fminf(path->min.x, part.pt[i].x);
-        path->min.y = fminf(path->min.y, part.pt[i].y);
-        path->max.x = fmaxf(path->max.x, part.pt[i].x);
-        path->max.y = fmaxf(path->max.y, part.pt[i].y);
-    }
-
-    // Set the last point.
-   path->cur = part.pt[pg_partcount(part.type) - 1];
+    path->cur = part.pt[pg_partcount(part.type) - 1];
 }
 
 
@@ -66,9 +57,7 @@ pg_path(void)
     return new(PgPath,
         .nparts = 0,
         .parts = 0,
-        .cur = zero(),
-        .min = PgPt(FLT_MAX, FLT_MAX),
-        .max = PgPt(FLT_MIN, FLT_MIN));
+        .cur = zero());
 }
 
 

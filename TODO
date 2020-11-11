@@ -1,10 +1,15 @@
 Queue
 ----------------------------------------------------------------
 
+  - REGRESSIONS
+    - TrueType not closed correctly
+    - 'URW Bookman' 'o' not closed correctly
+    - `pg_stroke()` not visible while `pg_fill_stroke()` is
   - System pseudo-fonts (sans, serif, monospace, etc.)
   - Fallback fonts
   - OpenType Windows/Symbol CMAP
   - Unicode glyphs outside of BMP
+  - Add pkg-config
 
 
 Backlog

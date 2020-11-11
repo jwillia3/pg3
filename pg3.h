@@ -138,8 +138,6 @@ struct PgPath {
     unsigned            nparts;
     PgPart              *parts;
     PgPt                cur;
-    PgPt                min;
-    PgPt                max;
 };
 
 struct PgPart {

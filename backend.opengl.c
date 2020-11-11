@@ -145,7 +145,7 @@ xyz_to_rgb(PgColor xyz)
 
 
 static PgColor
-gamma(PgColor rgb)
+gamma_correct(PgColor rgb)
 {
     float r = rgb.x;
     float g = rgb.y;
@@ -162,10 +162,10 @@ gamma(PgColor rgb)
 static PgColor
 convert_color(PgColorSpace cspace, PgColor color)
 {
-    return  cspace == 0? gamma(color):
-            cspace == 1? gamma(xyz_to_rgb(lab_to_xyz(lch_to_lab(color)))):
-            cspace == 2? gamma(xyz_to_rgb(lab_to_xyz(color))):
-            cspace == 3? gamma(xyz_to_rgb(color)):
+    return  cspace == 0? gamma_correct(color):
+            cspace == 1? gamma_correct(xyz_to_rgb(lab_to_xyz(lch_to_lab(color)))):
+            cspace == 2? gamma_correct(xyz_to_rgb(lab_to_xyz(color))):
+            cspace == 3? gamma_correct(xyz_to_rgb(color)):
             color;
 }
 
@@ -503,8 +503,16 @@ _fill(Pg *g)
 
     // Draw a quad over mask only placing pixels where the stencil bit is set.
 
-    PgPt    min = g->path->min;
-    PgPt    max = add(min, g->path->max);
+    PgPt min = verts[0];
+    PgPt max = verts[0];
+
+    for (unsigned i = 0; i < nverts; i++) {
+        min.x = fminf(min.x, verts[i].x);
+        min.y = fminf(min.y, verts[i].y);
+        max.x = fmaxf(max.x, verts[i].x);
+        max.y = fmaxf(max.y, verts[i].y);
+    }
+
     GLfloat quadverts[] = {min.x, min.y,
                            max.x, min.y,
                            min.x, max.y,

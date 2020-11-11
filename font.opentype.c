@@ -744,9 +744,9 @@ ttoutline(Pg *g, PgFont *font, PgTM ctm, unsigned glyph)
         // have the same effect.
         float       x = 0.0f;
         float       y = 0.0f;
-        PgPt     home = PgPt(0.0f, 0.0f);    // Start of this contour.
-        PgPt     oldp = home;                // Prev point; used in curves.
-        PgPt     p = home;                   // Current point.
+        PgPt        home = PgPt(0.0f, 0.0f);    // Start of this contour.
+        PgPt        oldp = home;                // Prev point; used in curves.
+        PgPt        p = home;                   // Current point.
         unsigned    xi = flags + fsize;         // X coordinate index.
         unsigned    yi = xi + xsize;            // Y coordinate index.
         bool        curving = false;            // Last segment was a curve.
@@ -798,6 +798,7 @@ ttoutline(Pg *g, PgFont *font, PgTM ctm, unsigned glyph)
                     curving = true;
             }
         }
+
         if (npoints != 0) {
             if (curving)
                 pg_curve3(g, p.x, p.y, home.x, home.y);

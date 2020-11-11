@@ -4,11 +4,11 @@ USE_OPENGL = 1
 OPTIONS=-DPLATFORM=$(PLATFORM) \
 		$(USE_OPENGL:1=-DUSE_OPENGL=1)
 
-# PEDANTIC = -Weverything -Wno-padded -Wno-cast-qual -Wno-bad-function-cast\
-# 	-Wno-format-nonliteral -Wno-undef -Wno-comma -Wno-double-promotion\
-# 	-Wno-missing-variable-declarations -Wno-missing-prototypes\
-# 	-Wno-disabled-macro-expansion -Wno-shadow -Wno-float-equal\
-# 	-Wno-strict-prototypes -pedantic -Wno-switch-enum
+PEDANTIC = -Weverything -Wno-padded -Wno-cast-qual -Wno-bad-function-cast\
+	-Wno-format-nonliteral -Wno-undef -Wno-comma -Wno-double-promotion\
+	-Wno-missing-variable-declarations -Wno-missing-prototypes\
+	-Wno-disabled-macro-expansion -Wno-shadow -Wno-float-equal\
+	-Wno-strict-prototypes -pedantic -Wno-switch-enum
 
 CFLAGS = -Wall -Wextra -Werror -fno-caret-diagnostics $(PEDANTIC)
 ALL_CFLAGS = -std=c11 -D_XOPEN_SOURCE=700 $(OPTIONS) -O2 -g -I. $(CFLAGS)
@@ -21,7 +21,7 @@ run-demo: demo
 
 
 demo:	demo.c libpg3.so
-	$(CC) $(ALL_CFLAGS) -I. -L. -odemo demo.c -lpg3 -lGLEW -lGL -lglfw -lm
+	$(CC) -I. -L. -odemo demo.c -lpg3 -lGLEW -lGL -lX11 -lglfw
 
 
 libpg3.so: pg3.h internal.h $(SRC)

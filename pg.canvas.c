@@ -8,16 +8,23 @@ static const PgPaint black_paint = {
     .type = PG_SOLID_PAINT,
     .cspace = PG_SRGB,
     .colors[0] = { 0.0f, 0.0f, 0.0f, 1.0f },
-    .nstops = 0,
+    .nstops = 1,
+};
+
+static const PgPaint white_paint = {
+    .type = PG_SOLID_PAINT,
+    .cspace = PG_SRGB,
+    .colors[0] = { 1.0f, 1.0f, 1.0f, 1.0f },
+    .nstops = 1,
 };
 
 Pg
 pg_init_canvas(const PgCanvasImpl *v, float width, float height)
 {
     Pg canvas = {
-                    v,
-                    PgPt(width, height),
-                    pg_path(),
+                    .v = v,
+                    .size = PgPt(width, height),
+                    .path = pg_path(),
                     .nsaved = 0,
                 };
 
@@ -35,6 +42,7 @@ pg_reset_state(Pg *g)
 
     g->s = (PgState) {
         .ctm = pg_ident_tm(),
+        .clear = &white_paint,
         .fill = &black_paint,
         .stroke = &black_paint,
         .line_width = 1.0f,
