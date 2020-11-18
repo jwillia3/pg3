@@ -161,6 +161,31 @@ pg_path_rectangle(PgPath *path, float x, float y, float sx, float sy)
 
 
 void
+pg_path_rounded(PgPath *path, float x, float y, float sx, float sy, float rx, float ry)
+{
+    if (rx > sx * .5f)
+        rx = sx * .5f;
+
+    if (ry > sy * .5f)
+        ry = sy * .5f;
+
+    sx -= rx * 2.0f;
+    sy -= ry * 2.0f;
+
+
+    pg_path_move(path, x + sx + rx, y);
+    pg_path_rcurve3(path, rx, .0f, .0f, ry);
+    pg_path_rline(path, .0f, sy);
+    pg_path_rcurve3(path, .0f, ry, -rx, .0f);
+    pg_path_rline(path, -sx, .0f);
+    pg_path_rcurve3(path, -rx, .0f, .0f, -ry);
+    pg_path_rline(path, .0f, -sy);
+    pg_path_rcurve3(path, .0f, -ry, rx, .0f);
+    pg_path_close(path);
+}
+
+
+void
 pg_path_close(PgPath *path)
 {
     if (previous(path) != PG_PART_CLOSE)

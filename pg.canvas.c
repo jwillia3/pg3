@@ -53,6 +53,8 @@ pg_reset_state(Pg *g)
         .clip_y = 0.0f,
         .clip_sx = g->size.x,
         .clip_sy = g->size.y,
+        .text_pos = PG_TEXT_POS_TOP,
+        .underline = false,
     };
 }
 
@@ -205,7 +207,7 @@ pg_fill(Pg *g)
         return;
 
     g->v->fill(g);
-    pg_path_reset(g->path);
+    pg_reset_path(g);
 }
 
 
@@ -222,7 +224,7 @@ pg_stroke(Pg *g)
         return;
 
     g->v->stroke(g);
-    pg_path_reset(g->path);
+    pg_reset_path(g);
 }
 
 
@@ -242,7 +244,7 @@ pg_fill_stroke(Pg *g)
         return;
 
     g->v->fill_stroke(g);
-    pg_path_reset(g->path);
+    pg_reset_path(g);
 }
 
 
@@ -334,7 +336,16 @@ pg_rectangle(Pg *g, float x, float y, float sx, float sy)
 
 
 void
-pg_reset(Pg *g)
+pg_rounded(Pg *g, float x, float y, float sx, float sy, float rx, float ry)
+{
+    if (!g)
+        return;
+    pg_path_rounded(g->path, x, y, sx, sy, rx, ry);
+}
+
+
+void
+pg_reset_path(Pg *g)
 {
     if (!g)
         return;
@@ -342,4 +353,235 @@ pg_reset(Pg *g)
 
 }
 
+
+void
+pg_set_fill(Pg *g, const PgPaint *paint)
+{
+    if (!g)
+        return;
+
+    if (!paint)
+        return;
+
+    g->s.fill = paint;
+}
+
+
+void
+pg_set_stroke(Pg *g, const PgPaint *paint)
+{
+    if (!g)
+        return;
+
+    if (!paint)
+        return;
+
+    g->s.stroke = paint;
+}
+
+
+void
+pg_set_clear(Pg *g, const PgPaint *paint)
+{
+    if (!g)
+        return;
+
+    if (!paint)
+        return;
+
+    g->s.clear = paint;
+}
+
+void
+pg_set_line_width(Pg *g, float line_width)
+{
+    if (!g)
+        return;
+
+    if (line_width == 0.0f)
+        return;
+
+    g->s.line_width = line_width;
+
+}
+
+
+void
+pg_set_line_cap(Pg *g, PgLineCap line_cap)
+{
+    if (!g)
+        return;
+
+    switch (line_cap) {
+    case PG_BUTT_CAP:
+    case PG_SQUARE_CAP:
+        g->s.line_cap = line_cap;
+    }
+}
+
+
+void
+pg_set_flatness(Pg *g, float flatness)
+{
+    if (!g)
+        return;
+
+    if (flatness < 0.0f)
+        return;
+
+    g->s.flatness = flatness;
+}
+
+
+void
+pg_set_fill_rule(Pg *g, PgFillRule fill_rule)
+{
+    if (!g)
+        return;
+
+    switch (fill_rule) {
+    case PG_NONZERO_RULE:
+    case PG_EVEN_ODD_RULE:
+        g->s.fill_rule = fill_rule;
+    }
+
+}
+
+
+void
+pg_set_clip(Pg *g, float x, float y, float sx, float sy)
+{
+    if (!g)
+        return;
+
+    g->s.clip_x = x;
+    g->s.clip_y = y;
+    g->s.clip_sx = sx;
+    g->s.clip_sy = sy;
+}
+
+
+void
+pg_set_text_pos(Pg *g, PgTextPos text_pos)
+{
+    if (!g)
+        return;
+
+    switch (text_pos) {
+    case PG_TEXT_POS_TOP:
+    case PG_TEXT_POS_BOTTOM:
+    case PG_TEXT_POS_BASELINE:
+    case PG_TEXT_POS_CENTER:
+        g->s.text_pos = text_pos;
+    }
+}
+
+
+void
+pg_set_underline(Pg *g, bool underline)
+{
+    if (!g)
+        return;
+
+    g->s.underline = underline;
+}
+
+
+const PgPaint *
+pg_get_fill(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.fill;
+}
+
+
+const PgPaint *
+pg_get_stroke(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.stroke;
+}
+
+
+const PgPaint *
+pg_get_clear(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.clear;
+}
+
+
+float
+pg_get_line_width(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.line_width;
+}
+
+
+PgLineCap
+pg_get_line_cap(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.line_cap;
+}
+
+
+float
+pg_get_flatness(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.flatness;
+}
+
+
+PgFillRule
+pg_get_fill_rule(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.fill_rule;
+}
+
+
+PgPt
+pg_get_clip_start(Pg *g)
+{
+    if (!g)
+        return PgPt(0.0f, 0.0f);
+    return PgPt(g->s.clip_x, g->s.clip_y);
+}
+
+
+PgPt
+pg_get_clip_size(Pg *g)
+{
+    if (!g)
+        return PgPt(0.0f, 0.0f);
+    return PgPt(g->s.clip_sx, g->s.clip_sy);
+}
+
+
+PgTextPos
+pg_get_text_pos(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.text_pos;
+}
+
+
+bool
+pg_get_underline(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.text_pos;
+}
 

@@ -1,6 +1,7 @@
 #include <wchar.h>
 #include <wctype.h>
 
+
 #define new(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
 
 
@@ -11,6 +12,8 @@ void *_pgmap_file(const char *path, size_t *sizep);
 void _pgunmap_file(void *ptr, size_t size);
 
 char **_pgget_font_files(void);
+
+void _pg_free_font_list(void);
 
 
 static inline int

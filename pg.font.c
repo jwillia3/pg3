@@ -29,6 +29,25 @@ compare_face(const void *ap, const void *bp)
             stricmp(a->style, b->style);
 }
 
+void
+_pg_free_font_list(void)
+{
+    if (!_families)
+        return;
+
+    for (PgFamily *fam = _families; fam->name; fam++) {
+
+        free((void*) fam->faces[0].family);
+
+        for (PgFace *face = fam->faces; face->family; face++) {
+            free((void*) face->style);
+            free((void*) face->path);
+        }
+    }
+
+    free(_families);
+}
+
 
 PgFamily*
 pg_list_fonts(void)

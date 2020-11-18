@@ -380,6 +380,7 @@ flatten(Pg *g,
     PgPt        home = pg_apply_tm(ctm, PgPt(0.0f, 0.0f));
     PgPt        cur = home;
     PgPath      path = *g->path;
+    float       flatness = (g->s.flatness * 0.5f) * (g->s.flatness * 0.5f);
 
     for (unsigned i = 0; i < path.nparts; i++) {
         if (nverts >= 65536 - (1 << BEZIER_LIMIT))
@@ -399,7 +400,7 @@ flatten(Pg *g,
                             cur,
                             pg_apply_tm(ctm, pts[0]),
                             pg_apply_tm(ctm, pts[1]),
-                            g->s.flatness * 0.5f,
+                            flatness,
                             BEZIER_LIMIT);
             cur = pg_apply_tm(ctm, pts[1]);
             break;
@@ -409,7 +410,7 @@ flatten(Pg *g,
                             pg_apply_tm(ctm, pts[0]),
                             pg_apply_tm(ctm, pts[1]),
                             pg_apply_tm(ctm, pts[2]),
-                            g->s.flatness * 0.5f,
+                            flatness,
                             BEZIER_LIMIT);
             cur = pg_apply_tm(ctm, pts[2]);
             break;
@@ -727,8 +728,7 @@ static void
 _resize(Pg *g, float width, float height)
 {
     (void) g;
-    (void) width;
-    (void) height;
+    glViewport(0.0f, 0.0f, (GLsizei) width, (GLsizei) height);
 }
 
 
