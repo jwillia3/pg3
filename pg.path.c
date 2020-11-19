@@ -163,6 +163,11 @@ pg_path_rectangle(PgPath *path, float x, float y, float sx, float sy)
 void
 pg_path_rounded(PgPath *path, float x, float y, float sx, float sy, float rx, float ry)
 {
+    if (rx == 0.0f && ry == 0.0f) {
+        pg_path_rectangle(path, x, y, sx, sy);
+        return;
+    }
+
     if (rx > sx * .5f)
         rx = sx * .5f;
 

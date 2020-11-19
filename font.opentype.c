@@ -624,8 +624,9 @@ fail:
 }
 
 
-static bool
-getname(const PgFont *font, unsigned id, uint8_t *buf, uint8_t *limit)
+static
+bool
+getname(const PgFont *font, unsigned id, char *buf, char *limit)
 {
     section cursect = OTF(font)->name;
 
@@ -665,7 +666,8 @@ fail:
 }
 
 
-static section
+static
+section
 glyf_section(PgFont *font, unsigned glyph)
 {
     section     cursect = OTF(font)->glyf;
@@ -1713,8 +1715,8 @@ _int(PgFont *font, PgFontProp id)
 static const char*
 _string(PgFont *font, PgFontProp id)
 {
-    uint8_t *buf = (uint8_t*) OTF(font)->prop_buf;
-    uint8_t *limit = buf + sizeof OTF(font)->prop_buf;
+    char *buf = OTF(font)->prop_buf;
+    char *limit = buf + sizeof OTF(font)->prop_buf;
 
     switch (id) {
 

@@ -23,7 +23,8 @@ pg_init_canvas(const PgCanvasImpl *v, float width, float height)
 {
     Pg canvas = {
                     .v = v,
-                    .size = PgPt(width, height),
+                    .sx = width,
+                    .sy = height,
                     .path = pg_path(),
                     .nsaved = 0,
                 };
@@ -51,8 +52,8 @@ pg_reset_state(Pg *g)
         .fill_rule = PG_NONZERO_RULE,
         .clip_x = 0.0f,
         .clip_y = 0.0f,
-        .clip_sx = g->size.x,
-        .clip_sy = g->size.y,
+        .clip_sx = g->sx,
+        .clip_sy = g->sy,
         .text_pos = PG_TEXT_POS_TOP,
         .underline = false,
     };
@@ -170,7 +171,8 @@ pg_resize(Pg *g, float width, float height)
     if (g->v && g->v->resize)
         g->v->resize(g, width, height);
 
-    g->size = PgPt(width, height);
+    g->sx = width;
+    g->sy = height;
     g->s.clip_x = 0.0f;
     g->s.clip_y = 0.0f;
     g->s.clip_sx = width;

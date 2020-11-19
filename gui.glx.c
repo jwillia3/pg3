@@ -26,9 +26,11 @@ static Screen       *screen;
 static Window       window;
 static GLXContext   gl;
 static Pg           *g;
+static bool         redraw;
 static float        _mouse_x;
 static float        _mouse_y;
 static unsigned     _buttons;
+static float        _wheel;
 static unsigned     _mods;
 static int32_t      _key;
 
@@ -250,103 +252,103 @@ key(KeySym keysym)
     switch (keysym) {
 
     case XK_VoidSymbol:     return 0;
-    case XK_BackSpace:      return PGGK_BACKSPACE;
-    case XK_Tab:            return PGGK_TAB;
-    case XK_Linefeed:       return PGGK_ENTER;
-    case XK_Return:         return PGGK_ENTER;
-    case XK_Pause:          return PGGK_PAUSE;
-    case XK_Scroll_Lock:    return PGGK_SCROLL_LOCK;
-    case XK_Sys_Req:        return PGGK_SYS_REQ;
-    case XK_Escape:         return PGGK_ESCAPE;
-    case XK_Delete:         return PGGK_DELETE;
-    case XK_Muhenkan:       return PGGK_NO_CONVERT;
-    case XK_Henkan:         return PGGK_CONVERT;
-    case XK_Romaji:         return PGGK_KANA;
-    case XK_Hiragana:       return PGGK_KANA;
-    case XK_Katakana:       return PGGK_KANA;
-    case XK_Hiragana_Katakana: return PGGK_KANA;
-    case XK_Zenkaku:        return PGGK_HANKAKU;
-    case XK_Hankaku:        return PGGK_HANKAKU;
-    case XK_Zenkaku_Hankaku: return PGGK_HANKAKU;
-    case XK_Hangul:         return PGGK_HANGUL;
-    case XK_Hangul_Hanja:   return PGGK_HANJA;
-    case XK_Home:           return PGGK_HOME;
-    case XK_Left:           return PGGK_LEFT;
-    case XK_Up:             return PGGK_UP;
-    case XK_Right:          return PGGK_RIGHT;
-    case XK_Down:           return PGGK_DOWN;
-    case XK_Prior:          return PGGK_PAGE_UP;
-    case XK_Next:           return PGGK_PAGE_DOWN;
-    case XK_End:            return PGGK_END;
-    case XK_Print:          return PGGK_PRINT_SCREEN;
-    case XK_Execute:        return PGGK_EXECUTE;
-    case XK_Insert:         return PGGK_INSERT;
-    case XK_Undo:           return PGGK_UNDO;
-    case XK_Redo:           return PGGK_REDO;
-    case XK_Menu:           return PGGK_MENU;
-    case XK_Find:           return PGGK_FIND;
-    case XK_Cancel:         return PGGK_STOP;
-    case XK_Help:           return PGGK_HELP;
-    case XK_Num_Lock:       return PGGK_NUM_LOCK;
-    case XK_KP_Enter:       return PGGK_KP_ENTER;
-    case XK_KP_Home:        return PGGK_KP_7;
-    case XK_KP_Left:        return PGGK_KP_4;
-    case XK_KP_Up:          return PGGK_KP_8;
-    case XK_KP_Right:       return PGGK_KP_6;
-    case XK_KP_Down:        return PGGK_KP_2;
-    case XK_KP_Prior:       return PGGK_KP_9;
-    case XK_KP_Next:        return PGGK_KP_3;
-    case XK_KP_End:         return PGGK_KP_1;
-    case XK_KP_Equal:       return PGGK_KP_EQUAL;
-    case XK_KP_Multiply:    return PGGK_KP_MULTIPLY;
-    case XK_KP_Add:         return PGGK_KP_ADD;
-    case XK_KP_Separator:   return PGGK_KP_SEPARATOR;
-    case XK_KP_Subtract:    return PGGK_KP_SUBTRACT;
-    case XK_KP_Decimal:     return PGGK_KP_SUBTRACT;
-    case XK_KP_Divide:      return PGGK_KP_DIVIDE;
-    case XK_KP_0:           return PGGK_KP_0;
-    case XK_KP_1:           return PGGK_KP_1;
-    case XK_KP_2:           return PGGK_KP_2;
-    case XK_KP_3:           return PGGK_KP_3;
-    case XK_KP_4:           return PGGK_KP_4;
-    case XK_KP_5:           return PGGK_KP_5;
-    case XK_KP_6:           return PGGK_KP_6;
-    case XK_KP_7:           return PGGK_KP_7;
-    case XK_KP_8:           return PGGK_KP_8;
-    case XK_KP_9:           return PGGK_KP_9;
-    case XK_F1:             return PGGK_F1;
-    case XK_F2:             return PGGK_F2;
-    case XK_F3:             return PGGK_F3;
-    case XK_F4:             return PGGK_F4;
-    case XK_F5:             return PGGK_F5;
-    case XK_F6:             return PGGK_F6;
-    case XK_F7:             return PGGK_F7;
-    case XK_F8:             return PGGK_F8;
-    case XK_F9:             return PGGK_F9;
-    case XK_F10:            return PGGK_F10;
-    case XK_F11:            return PGGK_F11;
-    case XK_F12:            return PGGK_F12;
-    case XK_F13:            return PGGK_F13;
-    case XK_F14:            return PGGK_F14;
-    case XK_F15:            return PGGK_F15;
-    case XK_F16:            return PGGK_F16;
-    case XK_F17:            return PGGK_F17;
-    case XK_F18:            return PGGK_F18;
-    case XK_F19:            return PGGK_F19;
-    case XK_F20:            return PGGK_F20;
-    case XK_F21:            return PGGK_F21;
-    case XK_F22:            return PGGK_F22;
-    case XK_F23:            return PGGK_F23;
-    case XK_F24:            return PGGK_F24;
-    case XK_Shift_L:        return PGGK_SHIFT_LEFT;
-    case XK_Shift_R:        return PGGK_SHIFT_RIGHT;
-    case XK_Control_L:      return PGGK_CTRL_LEFT;
-    case XK_Control_R:      return PGGK_CTRL_RIGHT;
-    case XK_Alt_L:          return PGGK_ALT_LEFT;
-    case XK_Alt_R:          return PGGK_ALT_RIGHT;
-    case XK_Super_L:        return PGGK_WIN_LEFT;
-    case XK_Super_R:        return PGGK_WIN_RIGHT;
-    case XK_Caps_Lock:      return PGGK_CAPS_LOCK;
+    case XK_BackSpace:      return PG_KEY_BACKSPACE;
+    case XK_Tab:            return PG_KEY_TAB;
+    case XK_Linefeed:       return PG_KEY_ENTER;
+    case XK_Return:         return PG_KEY_ENTER;
+    case XK_Pause:          return PG_KEY_PAUSE;
+    case XK_Scroll_Lock:    return PG_KEY_SCROLL_LOCK;
+    case XK_Sys_Req:        return PG_KEY_SYS_REQ;
+    case XK_Escape:         return PG_KEY_ESCAPE;
+    case XK_Delete:         return PG_KEY_DELETE;
+    case XK_Muhenkan:       return PG_KEY_NO_CONVERT;
+    case XK_Henkan:         return PG_KEY_CONVERT;
+    case XK_Romaji:         return PG_KEY_KANA;
+    case XK_Hiragana:       return PG_KEY_KANA;
+    case XK_Katakana:       return PG_KEY_KANA;
+    case XK_Hiragana_Katakana: return PG_KEY_KANA;
+    case XK_Zenkaku:        return PG_KEY_HANKAKU;
+    case XK_Hankaku:        return PG_KEY_HANKAKU;
+    case XK_Zenkaku_Hankaku: return PG_KEY_HANKAKU;
+    case XK_Hangul:         return PG_KEY_HANGUL;
+    case XK_Hangul_Hanja:   return PG_KEY_HANJA;
+    case XK_Home:           return PG_KEY_HOME;
+    case XK_Left:           return PG_KEY_LEFT;
+    case XK_Up:             return PG_KEY_UP;
+    case XK_Right:          return PG_KEY_RIGHT;
+    case XK_Down:           return PG_KEY_DOWN;
+    case XK_Prior:          return PG_KEY_PAGE_UP;
+    case XK_Next:           return PG_KEY_PAGE_DOWN;
+    case XK_End:            return PG_KEY_END;
+    case XK_Print:          return PG_KEY_PRINT_SCREEN;
+    case XK_Execute:        return PG_KEY_EXECUTE;
+    case XK_Insert:         return PG_KEY_INSERT;
+    case XK_Undo:           return PG_KEY_UNDO;
+    case XK_Redo:           return PG_KEY_REDO;
+    case XK_Menu:           return PG_KEY_MENU;
+    case XK_Find:           return PG_KEY_FIND;
+    case XK_Cancel:         return PG_KEY_STOP;
+    case XK_Help:           return PG_KEY_HELP;
+    case XK_Num_Lock:       return PG_KEY_NUM_LOCK;
+    case XK_KP_Enter:       return PG_KEY_KP_ENTER;
+    case XK_KP_Home:        return PG_KEY_KP_7;
+    case XK_KP_Left:        return PG_KEY_KP_4;
+    case XK_KP_Up:          return PG_KEY_KP_8;
+    case XK_KP_Right:       return PG_KEY_KP_6;
+    case XK_KP_Down:        return PG_KEY_KP_2;
+    case XK_KP_Prior:       return PG_KEY_KP_9;
+    case XK_KP_Next:        return PG_KEY_KP_3;
+    case XK_KP_End:         return PG_KEY_KP_1;
+    case XK_KP_Equal:       return PG_KEY_KP_EQUAL;
+    case XK_KP_Multiply:    return PG_KEY_KP_MULTIPLY;
+    case XK_KP_Add:         return PG_KEY_KP_ADD;
+    case XK_KP_Separator:   return PG_KEY_KP_SEPARATOR;
+    case XK_KP_Subtract:    return PG_KEY_KP_SUBTRACT;
+    case XK_KP_Decimal:     return PG_KEY_KP_SUBTRACT;
+    case XK_KP_Divide:      return PG_KEY_KP_DIVIDE;
+    case XK_KP_0:           return PG_KEY_KP_0;
+    case XK_KP_1:           return PG_KEY_KP_1;
+    case XK_KP_2:           return PG_KEY_KP_2;
+    case XK_KP_3:           return PG_KEY_KP_3;
+    case XK_KP_4:           return PG_KEY_KP_4;
+    case XK_KP_5:           return PG_KEY_KP_5;
+    case XK_KP_6:           return PG_KEY_KP_6;
+    case XK_KP_7:           return PG_KEY_KP_7;
+    case XK_KP_8:           return PG_KEY_KP_8;
+    case XK_KP_9:           return PG_KEY_KP_9;
+    case XK_F1:             return PG_KEY_F1;
+    case XK_F2:             return PG_KEY_F2;
+    case XK_F3:             return PG_KEY_F3;
+    case XK_F4:             return PG_KEY_F4;
+    case XK_F5:             return PG_KEY_F5;
+    case XK_F6:             return PG_KEY_F6;
+    case XK_F7:             return PG_KEY_F7;
+    case XK_F8:             return PG_KEY_F8;
+    case XK_F9:             return PG_KEY_F9;
+    case XK_F10:            return PG_KEY_F10;
+    case XK_F11:            return PG_KEY_F11;
+    case XK_F12:            return PG_KEY_F12;
+    case XK_F13:            return PG_KEY_F13;
+    case XK_F14:            return PG_KEY_F14;
+    case XK_F15:            return PG_KEY_F15;
+    case XK_F16:            return PG_KEY_F16;
+    case XK_F17:            return PG_KEY_F17;
+    case XK_F18:            return PG_KEY_F18;
+    case XK_F19:            return PG_KEY_F19;
+    case XK_F20:            return PG_KEY_F20;
+    case XK_F21:            return PG_KEY_F21;
+    case XK_F22:            return PG_KEY_F22;
+    case XK_F23:            return PG_KEY_F23;
+    case XK_F24:            return PG_KEY_F24;
+    case XK_Shift_L:        return PG_KEY_SHIFT_LEFT;
+    case XK_Shift_R:        return PG_KEY_SHIFT_RIGHT;
+    case XK_Control_L:      return PG_KEY_CTRL_LEFT;
+    case XK_Control_R:      return PG_KEY_CTRL_RIGHT;
+    case XK_Alt_L:          return PG_KEY_ALT_LEFT;
+    case XK_Alt_R:          return PG_KEY_ALT_RIGHT;
+    case XK_Super_L:        return PG_KEY_WIN_LEFT;
+    case XK_Super_R:        return PG_KEY_WIN_RIGHT;
+    case XK_Caps_Lock:      return PG_KEY_CAPS_LOCK;
     }
 
     return (int32_t) -keysym;
@@ -377,6 +379,13 @@ buttons(unsigned state)
 bool
 pg_wait(void)
 {
+    if (redraw) {
+        redraw = false;
+
+        if (!XPending(display))
+            return true;
+    }
+
     XEvent e;
 
     XNextEvent(display, &e);
@@ -390,8 +399,12 @@ pg_wait(void)
         XRefreshKeyboardMapping(&e.xmapping);
         break;
 
-    case KeyPress:
     case KeyRelease:
+        _key = 0;
+        _mods = modifiers(e.xkey.state);
+        break;
+
+    case KeyPress:
 
         {
             bool    caps = e.xkey.state & LockMask;
@@ -406,8 +419,15 @@ pg_wait(void)
 
     case MotionNotify:
         {
+            // The X Server sends too many reports.
+            // Only look at the last.
+            while (XCheckTypedWindowEvent(display, window, MotionNotify, &e)) {
+            }
+
             _mouse_x = (float) e.xmotion.x;
             _mouse_y = (float) e.xmotion.y;
+            _mods = modifiers(e.xmotion.state);
+            _buttons = buttons(e.xmotion.state);
             break;
         }
 
@@ -417,17 +437,23 @@ pg_wait(void)
             _mouse_x = (float) e.xbutton.x;
             _mouse_y = (float) e.xbutton.y;
             _mods = modifiers(e.xbutton.state);
-            _buttons = buttons(e.xbutton.state) +
-                        (e.type == ButtonPress
-                         ? 1 << (e.xbutton.button - 1)
-                         : -(1 << (e.xbutton.button - 1)));
+
+            if (e.xbutton.button == 4)
+                _wheel = e.type == ButtonPress? -1.0f: .0f;
+            else if (e.xbutton.button == 5)
+                _wheel = e.type == ButtonPress? +1.0f: .0f;
+            else
+                _buttons = buttons(e.xbutton.state) +
+                            (e.type == ButtonPress
+                             ? 1 << (e.xbutton.button - 1)
+                             : -(1 << (e.xbutton.button - 1)));
             break;
         }
 
     case ConfigureNotify:
 
-        if ((float) e.xconfigure.width != g->size.x ||
-            (float) e.xconfigure.height != g->size.y)
+        if ((float) e.xconfigure.width != g->sx ||
+            (float) e.xconfigure.height != g->sy)
         {
             pg_resize(g,
                       (float) e.xconfigure.width,
@@ -447,8 +473,7 @@ pg_wait(void)
             e.xclient.data.l[0] == (long) WM_DELETE_WINDOW)
         {
             XDestroyWindow(display, window);
-            XFlush(display);
-            break;
+            return false;
         }
         break;
 
@@ -465,8 +490,22 @@ pg_update(void)
 }
 
 
+void
+pg_redraw(void)
+{
+    redraw = true;
+}
+
+
+Pg*
+pg_root_canvas(void)
+{
+    return g;
+}
+
+
 PgPt
-pg_mouse_location(void)
+pg_mouse_at(void)
 {
     return PgPt(_mouse_x, _mouse_y);
 }
@@ -479,10 +518,24 @@ pg_mouse_buttons(void)
 }
 
 
+float
+pg_mouse_wheel(void)
+{
+    return _wheel;
+}
+
+
 int32_t
 pg_key(void)
 {
     return _key;
+}
+
+
+void
+pg_set_key(int32_t key)
+{
+    _key = key;
 }
 
 

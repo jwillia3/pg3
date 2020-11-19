@@ -4,39 +4,33 @@
 #include <pg3.h>
 #include "internal.h"
 
-typedef struct Sub Sub;
-
-struct Sub {
-    Pg      _;
-    Pg      *parent;
-    float   x;
-    float   y;
-    float   sx;
-    float   sy;
-};
-
 
 static
 void
 call(Pg *g, void subroutine(Pg *g))
 {
-    Sub     *sub = (Sub*) g;
-    Pg      *parent = sub->parent;
-    PgPath  *old_path = parent->path;
+    PgSubcanvas     *sub = (PgSubcanvas*) g;
+    Pg              *parent = sub->parent;
+    PgPath          *old_path = parent->path;
 
-    parent->path = sub->_.path;
-    parent->s = sub->_.s;
-    pg_translate(parent, sub->x, sub->y);
-    pg_set_clip(parent,
-        sub->x + g->s.clip_x,
-        sub->y + g->s.clip_y,
-        fminf(g->s.clip_sx, sub->sx),
-        fminf(g->s.clip_sy, sub->sy));
+    if (pg_save(g)) {
 
-    if (subroutine)
-        subroutine(parent);
+        parent->path = sub->_.path;
+        parent->s = sub->_.s;
+        pg_translate(parent, sub->x, sub->y);
+        pg_set_clip(parent,
+            fmaxf(sub->x, sub->x + g->s.clip_x),
+            fmaxf(sub->y, sub->y + g->s.clip_y),
+            fminf(g->s.clip_sx, sub->sx),
+            fminf(g->s.clip_sy, sub->sy));
 
-    parent->path = old_path;
+        if (subroutine)
+            subroutine(parent);
+
+        parent->path = old_path;
+
+        pg_restore(g);
+    }
 }
 
 
@@ -106,11 +100,11 @@ pg_subcanvas(Pg *parent, float x, float y, float sx, float sy)
     if (!parent)
         return 0;
 
-    return new(Sub,
+    return new(PgSubcanvas,
         pg_init_canvas(&methods, sx, sy),
         .parent = parent,
         .x = x,
         .y = y,
-        .sx = sx,
-        .sy = sy);
+        .sx = fminf(parent->sx - x, sx),
+        .sy = fminf(parent->sy - y, sy));
 }

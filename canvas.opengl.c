@@ -260,18 +260,17 @@ static void
 set_coords(Pg *g)
 {
     GL *gl = GL(g);
-    PgPt sz = g->size;
 
     glUseProgram(gl->prog);
 
     glEnable(GL_SCISSOR_TEST);
     glScissor((GLint) g->s.clip_x,
-              (GLint) (sz.y - g->s.clip_y - g->s.clip_sy),
+              (GLint) (g->sy - g->s.clip_y - g->s.clip_sy),
               (GLsizei) g->s.clip_sx,
               (GLsizei) g->s.clip_sy);
 
-    float ctm[] = { 2.0f / sz.x, 0.0f, 0.0f,
-                    0.0f, -2.0f / sz.y, 0.0f,
+    float ctm[] = { 2.0f / g->sx, 0.0f, 0.0f,
+                    0.0f, -2.0f / g->sy, 0.0f,
                     -1.0f, 1.0f, 0.0f };
     glUniformMatrix3fv(gl->ctmloc, 1, false, ctm);
 }
@@ -298,7 +297,7 @@ set_paint(Pg *g, const PgPaint *paint)
         glUniform1f(glGetUniformLocation(prog, tmp), paint->stops[i]);
     }
 
-    float h = g->size.y;
+    float h = g->sy;
     glUniform1i(glGetUniformLocation(prog, "type"), paint->type);
     glUniform1i(glGetUniformLocation(prog, "cspace"), paint->cspace);
     glUniform2f(glGetUniformLocation(prog, "a"), paint->a.x, h - paint->a.y);
@@ -334,15 +333,14 @@ _clear(Pg *g)
 
     else {
         GL      *gl = GL(g);
-        PgPt    sz = g->size;
 
         set_coords(g);
         set_paint(g, paint);
 
         GLfloat verts[] = { 0.0f, 0.0f,
-                            sz.x, 0.0f,
-                            0.0f, sz.y,
-                            sz.x, sz.y };
+                            g->sx, 0.0f,
+                            0.0f, g->sy,
+                            g->sx, g->sy };
 
         GLuint quads = make_buffer(GL_ARRAY_BUFFER, verts, 8 * sizeof *verts);
         glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);

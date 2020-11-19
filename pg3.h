@@ -4,17 +4,19 @@
 #include <stdint.h>
 
 
-typedef struct Pg           Pg;         // Canvas
-typedef struct PgState      PgState;    // State of canvas
-typedef struct PgColor      PgColor;    // Colour
-typedef struct PgPt         PgPt;       // Point
-typedef struct PgTM         PgTM;       // Transform Matrix (2D)
-typedef struct PgPath       PgPath;     // Path
-typedef struct PgPart       PgPart;     // Part of path
-typedef struct PgPaint      PgPaint;    // Paint
-typedef struct PgFont       PgFont;     // Font
-typedef struct PgFace       PgFace;     // Description of font face
-typedef struct PgFamily     PgFamily;   // Description of font family
+typedef struct Pg           Pg;             // Canvas
+typedef struct PgState      PgState;        // State of canvas
+typedef struct PgSubcanvas  PgSubcanvas;    // Limited section of another canvas
+typedef struct PgGroup      PgGroup;        // Control group
+typedef struct PgColor      PgColor;        // Colour
+typedef struct PgPt         PgPt;           // Point
+typedef struct PgTM         PgTM;           // Transform Matrix (2D)
+typedef struct PgPath       PgPath;         // Path
+typedef struct PgPart       PgPart;         // Part of path
+typedef struct PgPaint      PgPaint;        // Paint
+typedef struct PgFont       PgFont;         // Font
+typedef struct PgFace       PgFace;         // Description of font face
+typedef struct PgFamily     PgFamily;       // Description of font family
 
 typedef struct PgCanvasImpl PgCanvasImpl;
 typedef struct PgFontImpl   PgFontImpl;
@@ -113,110 +115,110 @@ enum PgFontProp {
 
 // In order of USB HID keys with ASCII characters removed.
 enum PgKey {
-    PGGK_ENTER          = -0X28,
-    PGGK_ESCAPE         = -0X29,
-    PGGK_BACKSPACE      = -0X2A,
-    PGGK_TAB            = -0X2B,
+    PG_KEY_ENTER          = -0X28,
+    PG_KEY_ESCAPE         = -0X29,
+    PG_KEY_BACKSPACE      = -0X2A,
+    PG_KEY_TAB            = -0X2B,
 
-    PGGK_CAPS_LOCK      = -0X39,
-    PGGK_F1             = -0X3A,
-    PGGK_F2             = -0X3B,
-    PGGK_F3             = -0X3C,
-    PGGK_F4             = -0X3D,
-    PGGK_F5             = -0X3E,
-    PGGK_F6             = -0X3F,
-    PGGK_F7             = -0X40,
-    PGGK_F8             = -0X41,
-    PGGK_F9             = -0X42,
-    PGGK_F10            = -0X43,
-    PGGK_F11            = -0X44,
-    PGGK_F12            = -0X45,
-    PGGK_PRINT_SCREEN   = -0X46,
-    PGGK_SCROLL_LOCK    = -0X47,
-    PGGK_PAUSE          = -0X48,
-    PGGK_INSERT         = -0X49,
-    PGGK_HOME           = -0X4A,
-    PGGK_PAGE_UP        = -0X4B,
-    PGGK_DELETE         = -0X4C,
-    PGGK_END            = -0X4D,
-    PGGK_PAGE_DOWN      = -0X4E,
-    PGGK_RIGHT          = -0X4F,
-    PGGK_LEFT           = -0X50,
-    PGGK_DOWN           = -0X51,
-    PGGK_UP             = -0X52,
-    PGGK_NUM_LOCK       = -0X53,
-    PGGK_KP_DIVIDE      = -0X54,
-    PGGK_KP_MULTIPLY    = -0X55,
-    PGGK_KP_SUBTRACT    = -0X56,
-    PGGK_KP_ADD         = -0X57,
-    PGGK_KP_ENTER       = -0X58,
-    PGGK_KP_1           = -0X59,
-    PGGK_KP_2           = -0X5A,
-    PGGK_KP_3           = -0X5B,
-    PGGK_KP_4           = -0X5C,
-    PGGK_KP_5           = -0X5D,
-    PGGK_KP_6           = -0X5E,
-    PGGK_KP_7           = -0X5F,
-    PGGK_KP_8           = -0X60,
-    PGGK_KP_9           = -0X61,
-    PGGK_KP_0           = -0X62,
-    PGGK_KP_DECIMAL     = -0X63,
-    PGGK_ISO_SLASH      = -0X64,
-    PGGK_APPLICATION    = -0X65,
-    PGGK_POWER          = -0X66,
-    PGGK_KP_EQUAL       = -0X67,
-    PGGK_F13            = -0X68,
-    PGGK_F14            = -0X69,
-    PGGK_F15            = -0X6A,
-    PGGK_F16            = -0X6B,
-    PGGK_F17            = -0X6C,
-    PGGK_F18            = -0X6D,
-    PGGK_F19            = -0X6E,
-    PGGK_F20            = -0X6F,
-    PGGK_F21            = -0X70,
-    PGGK_F22            = -0X71,
-    PGGK_F23            = -0X72,
-    PGGK_F24            = -0X73,
-    PGGK_EXECUTE        = -0x74,
-    PGGK_HELP           = -0X75,
-    PGGK_MENU           = -0X76,
-    PGGK_SELECT         = -0X77,
-    PGGK_STOP           = -0X78,
-    PGGK_REDO           = -0X79,
-    PGGK_UNDO           = -0X7A,
-    PGGK_CUT            = -0X7B,
-    PGGK_COPY           = -0X7C,
-    PGGK_PASTE          = -0X7D,
-    PGGK_FIND           = -0X7E,
-    PGGK_MUTE           = -0X7F,
-    PGGK_VOLUME_UP      = -0X80,
-    PGGK_VOLUME_DOWN    = -0X81,
+    PG_KEY_CAPS_LOCK      = -0X39,
+    PG_KEY_F1             = -0X3A,
+    PG_KEY_F2             = -0X3B,
+    PG_KEY_F3             = -0X3C,
+    PG_KEY_F4             = -0X3D,
+    PG_KEY_F5             = -0X3E,
+    PG_KEY_F6             = -0X3F,
+    PG_KEY_F7             = -0X40,
+    PG_KEY_F8             = -0X41,
+    PG_KEY_F9             = -0X42,
+    PG_KEY_F10            = -0X43,
+    PG_KEY_F11            = -0X44,
+    PG_KEY_F12            = -0X45,
+    PG_KEY_PRINT_SCREEN   = -0X46,
+    PG_KEY_SCROLL_LOCK    = -0X47,
+    PG_KEY_PAUSE          = -0X48,
+    PG_KEY_INSERT         = -0X49,
+    PG_KEY_HOME           = -0X4A,
+    PG_KEY_PAGE_UP        = -0X4B,
+    PG_KEY_DELETE         = -0X4C,
+    PG_KEY_END            = -0X4D,
+    PG_KEY_PAGE_DOWN      = -0X4E,
+    PG_KEY_RIGHT          = -0X4F,
+    PG_KEY_LEFT           = -0X50,
+    PG_KEY_DOWN           = -0X51,
+    PG_KEY_UP             = -0X52,
+    PG_KEY_NUM_LOCK       = -0X53,
+    PG_KEY_KP_DIVIDE      = -0X54,
+    PG_KEY_KP_MULTIPLY    = -0X55,
+    PG_KEY_KP_SUBTRACT    = -0X56,
+    PG_KEY_KP_ADD         = -0X57,
+    PG_KEY_KP_ENTER       = -0X58,
+    PG_KEY_KP_1           = -0X59,
+    PG_KEY_KP_2           = -0X5A,
+    PG_KEY_KP_3           = -0X5B,
+    PG_KEY_KP_4           = -0X5C,
+    PG_KEY_KP_5           = -0X5D,
+    PG_KEY_KP_6           = -0X5E,
+    PG_KEY_KP_7           = -0X5F,
+    PG_KEY_KP_8           = -0X60,
+    PG_KEY_KP_9           = -0X61,
+    PG_KEY_KP_0           = -0X62,
+    PG_KEY_KP_DECIMAL     = -0X63,
+    PG_KEY_ISO_SLASH      = -0X64,
+    PG_KEY_APPLICATION    = -0X65,
+    PG_KEY_POWER          = -0X66,
+    PG_KEY_KP_EQUAL       = -0X67,
+    PG_KEY_F13            = -0X68,
+    PG_KEY_F14            = -0X69,
+    PG_KEY_F15            = -0X6A,
+    PG_KEY_F16            = -0X6B,
+    PG_KEY_F17            = -0X6C,
+    PG_KEY_F18            = -0X6D,
+    PG_KEY_F19            = -0X6E,
+    PG_KEY_F20            = -0X6F,
+    PG_KEY_F21            = -0X70,
+    PG_KEY_F22            = -0X71,
+    PG_KEY_F23            = -0X72,
+    PG_KEY_F24            = -0X73,
+    PG_KEY_EXECUTE        = -0x74,
+    PG_KEY_HELP           = -0X75,
+    PG_KEY_MENU           = -0X76,
+    PG_KEY_SELECT         = -0X77,
+    PG_KEY_STOP           = -0X78,
+    PG_KEY_REDO           = -0X79,
+    PG_KEY_UNDO           = -0X7A,
+    PG_KEY_CUT            = -0X7B,
+    PG_KEY_COPY           = -0X7C,
+    PG_KEY_PASTE          = -0X7D,
+    PG_KEY_FIND           = -0X7E,
+    PG_KEY_MUTE           = -0X7F,
+    PG_KEY_VOLUME_UP      = -0X80,
+    PG_KEY_VOLUME_DOWN    = -0X81,
 
-    PGGK_KP_SEPARATOR   = -0X85,
+    PG_KEY_KP_SEPARATOR   = -0X85,
 
-    PGGK_KANA_LONG      = -0X87,
-    PGGK_KANA           = -0X88,
-    PGGK_YEN            = -0X89,
-    PGGK_CONVERT        = -0X8A,
-    PGGK_NO_CONVERT     = -0X8B,
+    PG_KEY_KANA_LONG      = -0X87,
+    PG_KEY_KANA           = -0X88,
+    PG_KEY_YEN            = -0X89,
+    PG_KEY_CONVERT        = -0X8A,
+    PG_KEY_NO_CONVERT     = -0X8B,
 
-    PGGK_HALF_WIDTH     = -0X8C,
-    PGGK_HANGUL         = -0X8E,
-    PGGK_HANJA          = -0X8F,
+    PG_KEY_HALF_WIDTH     = -0X8C,
+    PG_KEY_HANGUL         = -0X8E,
+    PG_KEY_HANJA          = -0X8F,
 
-    PGGK_HANKAKU        = -0X90,
+    PG_KEY_HANKAKU        = -0X90,
 
 
-    PGGK_SYS_REQ        = -0X9A,
+    PG_KEY_SYS_REQ        = -0X9A,
 
-    PGGK_CTRL_LEFT      = -0XE0,
-    PGGK_SHIFT_LEFT     = -0XE1,
-    PGGK_ALT_LEFT       = -0XE2,
-    PGGK_WIN_LEFT       = -0XE3,
-    PGGK_CTRL_RIGHT     = -0XE4,
-    PGGK_SHIFT_RIGHT    = -0XE5,
-    PGGK_ALT_RIGHT      = -0XE6,
-    PGGK_WIN_RIGHT      = -0XE7,
+    PG_KEY_CTRL_LEFT      = -0XE0,
+    PG_KEY_SHIFT_LEFT     = -0XE1,
+    PG_KEY_ALT_LEFT       = -0XE2,
+    PG_KEY_WIN_LEFT       = -0XE3,
+    PG_KEY_CTRL_RIGHT     = -0XE4,
+    PG_KEY_SHIFT_RIGHT    = -0XE5,
+    PG_KEY_ALT_RIGHT      = -0XE6,
+    PG_KEY_WIN_RIGHT      = -0XE7,
 };
 
 enum PgMods {
@@ -294,11 +296,36 @@ struct PgState {
 
 struct Pg {
     const PgCanvasImpl  *v;
-    PgPt                size;
+    float               sx;
+    float               sy;
     PgPath              *path;
     PgState             s;
     PgState             saved[16];
     unsigned            nsaved;
+};
+
+struct PgSubcanvas {
+    Pg      _;
+    Pg      *parent;
+    float   x;
+    float   y;
+    float   sx;
+    float   sy;
+};
+
+struct PgGroup {
+    float   x;
+    float   y;
+    float   max_x;
+    float   max_y;
+    float   abs_x;
+    float   abs_y;
+    float   pad_x;
+    float   pad_y;
+    bool    horiz;
+    Pg      *canvas;
+    void    *data;
+    void    (*end)(PgGroup *group);
 };
 
 struct PgFont {
@@ -420,14 +447,59 @@ Pg pg_init_canvas(const PgCanvasImpl *v, float width, float height);
 
 // Toolkit.
 bool pg_init_tk(void);
-PgPt pg_dpi(void);
+
 Pg *pg_window(unsigned width, unsigned height, const char *title);
-bool pg_wait(void);
+bool pg_event(void);
+
+PgPt pg_dpi(void);
+float pg_pad(void);
+void pg_redraw(void);
 void pg_update(void);
-PgPt pg_mouse_location(void);
+Pg* pg_root_canvas(void);
+
+// Device status.
+bool pg_should_activate(void);
+PgPt pg_mouse_at(void);
 unsigned pg_mouse_buttons(void);
+float pg_mouse_wheel(void);
 int32_t pg_key(void);
+void pg_set_key(int32_t key);
 unsigned pg_mod_keys(void);
+
+// Standard controls.
+bool pg_checkbox(const char *text, bool *checked);
+bool pg_button(const char *text);
+void pg_label(const char *text);
+void pg_hslider(float width, float *val);
+void pg_vslider(float height, float *val);
+bool pg_item(float sx, const char *text, bool selected);
+bool pg_dropdown(float sx, const char *text, bool *open);
+void pg_vscroll(float sx, float sy, float total_y, float *vscroll);
+bool pg_textbox(float width, char *text, size_t limit);
+
+Pg* pg_ctrl(float sx, float sy);
+void pg_group(bool horiz);
+void pg_end_group(void);
+
+PgFont* pg_font(void);
+
+PgPt pg_ctrl_at(void);
+PgPt pg_ctrl_size(void);
+Pg* pg_ctrl_canvas(void);
+unsigned pg_ctrl_id(void);
+bool pg_is_active(void);
+bool pg_is_focused(void);
+bool pg_is_mouse_over(void);
+
+void pg_group_clip(float x, float y, float sx, float sy);
+void pg_set_group_pad(float x, float y);
+void pg_set_group_cleanup(void subroutine(PgGroup *group), void *data);
+
+unsigned pg_get_active(void);
+void pg_set_active(unsigned id);
+unsigned pg_get_focused(void);
+void pg_set_focused(unsigned id);
+
 
 
 // Paths.
@@ -482,6 +554,7 @@ float pg_measure_string(PgFont *font, const char *str);
 
 unsigned pg_fit_chars(PgFont *font, const char *s, size_t nbytes, float width);
 unsigned pg_fit_string(PgFont *font, const char *str, float width);
+
 unsigned pg_get_glyph(PgFont *font, uint32_t codepoint);
 
 const char *pg_font_string(PgFont *font, PgFontProp id);
@@ -512,16 +585,68 @@ PgTM pg_rotate_tm(PgTM m, float rad);
 
 // UTF-8.
 
-static inline unsigned
-pg_read_utf8_tail(const uint8_t **in, const uint8_t *limit, unsigned nbytes, unsigned min)
-{
-    unsigned c = *(*in)++;
-    unsigned got = 0;
 
-    while (*in < limit && (**in & 0xc0) == 0x80) {
-        c = (c << 6) + (*(*in)++ & 0x3f);
+static
+inline
+size_t
+pg_utf8_nbytes(uint32_t codepoint)
+{
+    if (codepoint < 0x80)
+        return 1;
+
+    else if (codepoint < 0x0800)
+        return 2;
+
+    else if (codepoint < 0x10000)
+        return 3;
+
+    else if (codepoint < 0x10ffff)
+        return 4;
+
+    return 0;
+}
+
+static
+inline
+size_t
+pg_utf8_following(uint8_t lead)
+{
+    return  lead < 0x80? 0:
+            lead < 0xd0? 1:
+            lead < 0xf0? 2:
+                         3;
+}
+
+
+static
+inline
+uint32_t
+pg_read_utf8(const char **stringp, const char *limitp)
+{
+    const uint8_t   *in = (const uint8_t*) *stringp;
+    const uint8_t   *limit = (const uint8_t*) limitp;
+
+    uint32_t    c = *in++;
+    size_t      nbytes =    c < 0x80? 0:
+                            c < 0xd0? 1:
+                            c < 0xf0? 2:
+                                      3;
+    uint32_t    min =       c < 0x80? 0x00:
+                            c < 0xd0? 0x80:
+                            c < 0xf0? 0x800:
+                                      0x10000;
+    uint32_t    mask =      c < 0x80? 0x7f:
+                            c < 0xd0? 0x07ff:
+                            c < 0xf0? 0xffff:
+                                      0x10ffff;
+    unsigned    got = 0;
+
+    while (in < limit && (*in & 0xc0) == 0x80) {
+        c = (c << 6) + (*in++ & 0x3f);
         got++;
     }
+
+    *stringp = (const char*) in;
 
     if (got != nbytes)
         return 0xfffd;
@@ -529,32 +654,46 @@ pg_read_utf8_tail(const uint8_t **in, const uint8_t *limit, unsigned nbytes, uns
     if (c < min)
         return 0xfffd;
 
-    return c;
+    return c & mask;
 }
 
 
-static inline uint32_t
-pg_read_utf8(const uint8_t **in, const uint8_t *limit)
+static
+inline
+const char*
+pg_utf8_start(const char *str, const char *start, const char *limit)
 {
-    if (limit == 0)
-        limit = *in + 6; // A UTF-8 character can be 6 octets long.
+    if (str >= limit)
+        return limit;
 
-    if (**in < 0x80)
-        return *(*in)++;
+    if (str < start)
+        return start;
 
-    if (**in < 0xd0)
-        return pg_read_utf8_tail(in, limit, 1, 0x80) & 0x07ff;
+    while (str > start && (*str & 0xc0) == 0x80)
+        str--;
 
-    if (**in < 0xf0)
-        return pg_read_utf8_tail(in, limit, 2, 0x800) & 0xffff;
-
-    return pg_read_utf8_tail(in, limit, 3, 0x10000) & 0x10ffff;
+    return str;
 }
 
 
-static inline uint8_t*
-pg_write_utf8(uint8_t *out, uint8_t *limit, uint32_t c)
+static
+inline
+uint32_t
+pg_rev_read_utf8(const char **in, const char *start, const char *limit)
 {
+    *in = pg_utf8_start(*in, start, limit);
+    return pg_read_utf8((const char*[]) { *in }, limit);
+}
+
+
+static
+inline
+char*
+pg_write_utf8(char *outp, char *limitp, uint32_t c)
+{
+    uint8_t *out = (uint8_t*) outp;
+    uint8_t *limit = (uint8_t*) limitp;
+
     if (c < 0x80)
         *out++ = (uint8_t) c;
 
@@ -582,7 +721,7 @@ pg_write_utf8(uint8_t *out, uint8_t *limit, uint32_t c)
         }
     }
 
-    return out;
+    return (char*) out;
 }
 
 

@@ -356,9 +356,9 @@ pg_chars_path(Pg *g, PgFont *font, float x, float y, const char *str, size_t nby
         return 0.0f;
 
 
-    const uint8_t   *i = (uint8_t*) str;
-    const uint8_t   *end = i + nbytes;
-    float           xi = x;
+    const char  *i = str;
+    const char  *end = i + nbytes;
+    float       xi = x;
 
     while (i < end)
         xi = pg_char_path(g, font, xi, y, pg_read_utf8(&i, end));
@@ -481,9 +481,9 @@ pg_measure_chars(PgFont *font, const char *str, size_t nbytes)
         return 0.0f; // Not an error but exit early.
 
 
-    const uint8_t   *i = (uint8_t*) str;
-    const uint8_t   *end = i + nbytes;
-    float           width = 0.0f;
+    const char  *i = str;
+    const char  *end = i + nbytes;
+    float       width = 0.0f;
 
     while (i < end)
         width += pg_measure_char(font, pg_read_utf8(&i, end));
@@ -509,10 +509,10 @@ unsigned
 pg_fit_chars(PgFont *font, const char *s, size_t nbytes, float width)
 {
     if (font && s) {
-        float           total = 0.0f;
-        unsigned        nfit = 0;
-        const uint8_t   *i = (uint8_t*) s;
-        const uint8_t   *end = i + nbytes;
+        float       total = 0.0f;
+        unsigned    nfit = 0;
+        const char  *i = s;
+        const char  *end = i + nbytes;
 
         while (i < end) {
             float size = pg_measure_char(font, pg_read_utf8(&i, end));
