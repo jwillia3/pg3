@@ -299,6 +299,15 @@ pg_curve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy)
     pg_path_curve4(g->path, bx, by, cx, cy, dx, dy);
 }
 
+void
+pg_rmove(Pg *g, float x, float y)
+{
+    if (!g)
+        return;
+
+    pg_path_rmove(g->path, x, y);
+}
+
 
 void
 pg_rline(Pg *g, float x, float y)
@@ -353,6 +362,23 @@ pg_reset_path(Pg *g)
         return;
     pg_path_reset(g->path);
 
+}
+
+void
+pg_append(Pg *g, const PgPath *src)
+{
+    if (!g)
+        return;
+    if (!src)
+        return;
+    pg_path_append(g->path, src);
+}
+
+void
+pg_set_tm(Pg *g, PgTM tm) {
+    if (!g)
+        return;
+    g->s.ctm = tm;
 }
 
 
@@ -488,6 +514,14 @@ pg_set_underline(Pg *g, bool underline)
     g->s.underline = underline;
 }
 
+
+PgTM
+pg_get_tm(Pg *g)
+{
+    if (!g)
+        return pg_ident_tm();
+    return g->s.ctm;
+}
 
 const PgPaint *
 pg_get_fill(Pg *g)

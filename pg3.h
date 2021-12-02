@@ -365,6 +365,7 @@ struct PgCanvasImpl {
     void    (*fill)(Pg *g);
     void    (*stroke)(Pg *g);
     void    (*fill_stroke)(Pg *g);
+    void    (*compose)(Pg *g);
     void    (*resize)(Pg *g, float width, float height);
     void    (*free)(Pg *g);
 };
@@ -397,6 +398,7 @@ void pg_reset_state(Pg *g);
 
 void pg_reset_path(Pg *g);
 void pg_move(Pg *g, float x, float y);
+void pg_rmove(Pg *g, float x, float y);
 void pg_line(Pg *g, float x, float y);
 void pg_rline(Pg *g, float x, float y);
 void pg_curve3(Pg *g, float bx, float by, float cx, float cy);
@@ -406,6 +408,7 @@ void pg_rcurve4(Pg *g, float bx, float by, float cx, float cy, float dx, float d
 void pg_rectangle(Pg *g, float x, float y, float sx, float sy);
 void pg_rounded(Pg *g, float x, float y, float sx, float sy, float rx, float ry);
 void pg_close(Pg *g);
+void pg_append(Pg *g, const PgPath *src);
 
 void pg_clear(Pg *g);
 void pg_fill(Pg *g);
@@ -417,6 +420,7 @@ void pg_translate(Pg *g, float x, float y);
 void pg_rotate(Pg *g, float rads);
 void pg_scale(Pg *g, float x, float y);
 
+void pg_set_tm(Pg *g, PgTM tm);
 void pg_set_fill(Pg *g, const PgPaint *paint);
 void pg_set_stroke(Pg *g, const PgPaint *paint);
 void pg_set_clear(Pg *g, const PgPaint *paint);
@@ -428,6 +432,7 @@ void pg_set_clip(Pg *g, float x, float y, float sx, float sy);
 void pg_set_text_pos(Pg *g, PgTextPos text_pos);
 void pg_set_underline(Pg *g, bool underline);
 
+PgTM pg_get_tm(Pg *g);
 const PgPaint *pg_get_fill(Pg *g);
 const PgPaint *pg_get_stroke(Pg *g);
 const PgPaint *pg_get_clear(Pg *g);
@@ -504,19 +509,21 @@ void pg_set_focused(unsigned id);
 
 // Paths.
 PgPath *pg_path(void);
+void pg_path_free(PgPath *path);
 unsigned pg_partcount(PgPartType type);
 void pg_path_close(PgPath *path);
 void pg_path_curve3(PgPath *path, float bx, float by, float cx, float cy);
 void pg_path_curve4(PgPath *path, float bx, float by, float cx, float cy, float dx, float dy);
-void pg_path_free(PgPath *path);
 void pg_path_line(PgPath *path, float x, float y);
 void pg_path_rline(PgPath *path, float x, float y);
 void pg_path_move(PgPath *path, float x, float y);
+void pg_path_rmove(PgPath *path, float x, float y);
 void pg_path_rcurve3(PgPath *path, float bx, float by, float cx, float cy);
 void pg_path_rcurve4(PgPath *path, float bx, float by, float cx, float cy, float dx, float dy);
 void pg_path_rectangle(PgPath *path, float x, float y, float sx, float sy);
 void pg_path_rounded(PgPath *path, float x, float y, float sx, float sy, float rx, float ry);
 void pg_path_reset(PgPath *path);
+void pg_path_append(PgPath *path, const PgPath *src);
 
 
 

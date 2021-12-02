@@ -356,6 +356,160 @@ _clear(Pg *g)
     }
 }
 
+struct edge { float x, y, s; };
+
+#define MAX_EDGES 65536
+static struct edge  edges[MAX_EDGES];
+static PgPt         lverts[MAX_EDGES * 2];
+static unsigned     nedges;
+static unsigned     nlverts;
+
+static
+void
+edge(Pg *g, float ax, float ay, float bx, float by)
+{
+    if (ay == by)
+        return;
+
+    float d;
+    if (by < ay) {
+        float tx = ax;
+        float ty = ay;
+        ax = bx;
+        ay = by;
+        bx = tx;
+        by = ty;
+        d = -1;
+    } else
+        d = 1;
+
+    float dx = (bx - ax) / (by - ay);
+    float y = ay;
+    float x = ax;
+    float end_y = fminf(fminf(by, ay + MAX_EDGES - nedges), g->sy);
+
+    for ( ; y < 0; y++, x += dx);
+
+    for ( ; y < end_y; y++, x += dx)
+        edges[nedges++] = (struct edge) { x, truncf(y), d };
+}
+
+static
+void
+new_flatten4(Pg *g, PgPt a, PgPt b, PgPt c, PgPt d, float flatness, int lim)
+{
+    if (lim == 0 || is_flat(a, b, c, d, flatness))
+        edge(g, a.x, a.y, d.x, d.y);
+    else {
+        PgPt ab = midpoint(a, b);
+        PgPt bc = midpoint(b, c);
+        PgPt cd = midpoint(c, d);
+        PgPt abc = midpoint(ab, bc);
+        PgPt bcd = midpoint(bc, cd);
+        PgPt abcd = midpoint(abc, bcd);
+        new_flatten4(g, a, ab, abc, abcd, flatness, lim - 1);
+        new_flatten4(g, abcd, bcd, cd, d, flatness, lim - 1);
+    }
+}
+
+static
+void
+new_flatten(Pg *g)
+{
+    PgTM        ctm = g->s.ctm;
+    PgPt        home = pg_apply_tm(ctm, PgPt(0.0f, 0.0f));
+    PgPt        cur = home;
+    PgPt        p, q, r;
+    PgPath      path = *g->path;
+    float       flatness = (g->s.flatness * 0.5f) * (g->s.flatness * 0.5f);
+
+    for (unsigned i = 0; i < path.nparts; i++) {
+        PgPt    *pts = path.parts[i].pt;
+        switch (path.parts[i].type) {
+        case PG_PART_MOVE:
+            cur = home = pg_apply_tm(ctm, pts[0]);
+            break;
+        case PG_PART_LINE:
+            p = pg_apply_tm(ctm, pts[0]);
+            edge(g, cur.x, cur.y, p.x, p.y);
+            cur = p;
+            break;
+        case PG_PART_CURVE3:
+            p = pg_apply_tm(ctm, pts[0]);
+            q = pg_apply_tm(ctm, pts[1]);
+            new_flatten4(g, cur, p, q, q, flatness, BEZIER_LIMIT);
+            cur = q;
+            break;
+        case PG_PART_CURVE4:
+            p = pg_apply_tm(ctm, pts[0]);
+            q = pg_apply_tm(ctm, pts[1]);
+            r = pg_apply_tm(ctm, pts[2]);
+            new_flatten4(g, cur, p, q, r, flatness, BEZIER_LIMIT);
+            cur = r;
+            break;
+        case PG_PART_CLOSE:
+            edge(g, cur.x, cur.y, home.x, home.y);
+            cur = home;
+            break;
+        }
+    }
+}
+
+static
+int
+cmp_edge(const void *ap, const void *bp)
+{
+    const struct edge *a = ap;
+    const struct edge *b = bp;
+    return  a->y < b->y? -1:
+            a->y > b->y? +1:
+            a->x < b->x? -1:
+            a->x > b->x? +1:
+            0;
+}
+
+
+static void
+_new_fill(Pg *g)
+{
+    nedges = 0;
+    new_flatten(g);
+    qsort(edges, nedges, sizeof *edges, cmp_edge);
+
+    nlverts = 0;
+    unsigned i = 0;
+    while (i < nedges) {
+        float   x1 = edges[i].x;
+        float   y = floorf(edges[i].y);
+        float   s = edges[i].s;
+
+        while (++i < nedges && edges[i].s == s && edges[i].y == y);
+
+        if (edges[i].y == y) {
+            float x2 = edges[i].x;
+            lverts[nlverts] = PgPt(x1, y);
+            lverts[nlverts + 1] = PgPt(x2, y);
+            nlverts += 2;
+            i++;
+        }
+    }
+
+    set_coords(g);
+    set_paint(g, g->s.fill);
+
+    GLuint posloc = GL(g)->posloc;
+    GLuint src = make_buffer(GL_ARRAY_BUFFER, lverts, nlverts * sizeof *lverts);
+    glVertexAttribPointer(posloc, 2, GL_FLOAT, 0, 0, 0);
+    glEnableVertexAttribArray(posloc);
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_STENCIL_TEST);
+    glDrawArrays(GL_LINES, 0, nlverts);
+
+    glDisableVertexAttribArray(posloc);
+    glDeleteBuffers(1, &src);
+}
+
 
 /*
     Flatten path into line segments.
@@ -426,9 +580,14 @@ flatten(Pg *g,
     *pnsubs = nsubs;
 }
 
+#include <time.h>
+float flattening;
+float stenciling;
+float mapping;
+unsigned segments;
 
 static void
-_fill(Pg *g)
+_old_fill(Pg *g)
 {
     GL          *gl = GL(g);
     PgPt        *verts;
@@ -436,7 +595,19 @@ _fill(Pg *g)
     unsigned    nverts;
     unsigned    nsubs;
 
+struct timespec a,b;
+uint64_t ans;
+uint64_t bns;
+clock_gettime(CLOCK_MONOTONIC, &a);
+
     flatten(g, &verts, &nverts, &subs, &nsubs);
+
+segments += nverts;
+clock_gettime(CLOCK_MONOTONIC, &b);
+ans = a.tv_sec * 1000000000 + a.tv_nsec;
+bns = b.tv_sec * 1000000000 + b.tv_nsec;
+flattening += (bns-ans);
+
     if (!nverts) {
         free(verts);
         free(subs);
@@ -453,7 +624,7 @@ _fill(Pg *g)
         the stencil, and clockwise decrement.
         For each, non-zero stencil values are drawn.
     */
-
+clock_gettime(CLOCK_MONOTONIC, &a);
     GLuint src = make_buffer(GL_ARRAY_BUFFER, verts, nverts * sizeof *verts);
     glVertexAttribPointer(gl->posloc, 2, GL_FLOAT, 0, 0, 0);
     glEnableVertexAttribArray(gl->posloc);
@@ -500,8 +671,15 @@ _fill(Pg *g)
     glDisableVertexAttribArray(gl->posloc);
     glDeleteBuffers(1, &src);
 
+glFinish();
+clock_gettime(CLOCK_MONOTONIC, &b);
+ans = a.tv_sec * 1000000000 + a.tv_nsec;
+bns = b.tv_sec * 1000000000 + b.tv_nsec;
+stenciling += (bns-ans);
+
     // Draw a quad over mask only placing pixels where the stencil bit is set.
 
+clock_gettime(CLOCK_MONOTONIC, &a);
     PgPt min = verts[0];
     PgPt max = verts[0];
 
@@ -529,8 +707,24 @@ _fill(Pg *g)
     glDisableVertexAttribArray(gl->posloc);
     glDeleteBuffers(1, &quads);
 
+glFinish();
+clock_gettime(CLOCK_MONOTONIC, &b);
+ans = a.tv_sec * 1000000000 + a.tv_nsec;
+bns = b.tv_sec * 1000000000 + b.tv_nsec;
+mapping += (bns-ans);
+
     free(verts);
     free(subs);
+}
+
+int algorithm=0;
+static void
+_fill(Pg *g)
+{
+    if (algorithm)
+        _new_fill(g);
+    else
+        _old_fill(g);
 }
 
 

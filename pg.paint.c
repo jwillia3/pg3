@@ -25,6 +25,7 @@ pg_linear(PgColorSpace cspace, float ax, float ay, float bx, float by)
         .nstops = 0,
         .a = PgPt(ax, ay),
         .b = PgPt(bx, by),
+        .ra = .0f,
     };
 }
 

@@ -47,7 +47,8 @@ addpart(PgPath *path,
     PgPart part = { type, {{ax, ay}, {bx, by}, {cx, cy} } };
     path->parts[path->nparts++] = part;
 
-    path->cur = part.pt[pg_partcount(part.type) - 1];
+    if (pg_partcount(part.type))
+        path->cur = part.pt[pg_partcount(part.type) - 1];
 }
 
 
@@ -80,6 +81,36 @@ pg_path_reset(PgPath *path)
     path->nparts = 0;
 }
 
+void
+pg_path_append(PgPath *path, const PgPath *src)
+{
+    if (!path)
+        return;
+    if (!src)
+        return;
+
+    for (unsigned i = 0; i < src->nparts; i++) {
+        PgPt *p = src->parts[i].pt;
+        switch (src->parts[i].type) {
+        case PG_PART_MOVE:
+            pg_path_move(path, p[0].x, p[0].y);
+            break;
+        case PG_PART_LINE:
+            pg_path_line(path, p[0].x, p[0].y);
+            break;
+        case PG_PART_CURVE3:
+            pg_path_curve3(path, p[0].x, p[0].y, p[1].x, p[1].y);
+            break;
+        case PG_PART_CURVE4:
+            pg_path_curve4(path, p[0].x, p[0].y, p[1].x, p[1].y, p[2].x, p[2].y);
+            break;
+        case PG_PART_CLOSE:
+            pg_path_close(path);
+            break;
+        }
+    }
+}
+
 
 void
 pg_path_move(PgPath *path, float x, float y)
@@ -105,6 +136,17 @@ void
 pg_path_curve4(PgPath *path, float bx, float by, float cx, float cy, float dx, float dy)
 {
     addpart(path, PG_PART_CURVE4, bx, by, cx, cy, dx, dy);
+}
+
+void
+pg_path_rmove(PgPath *path, float x, float y)
+{
+    if (!path)
+        return;
+
+    x += path->cur.x;
+    y += path->cur.y;
+    addpart(path, PG_PART_MOVE, x, y, 0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 

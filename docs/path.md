@@ -46,24 +46,23 @@ each call such as `pg_move()`, `pg_line`, etc.
     PgPath path = pg_get_path(g);
     for (unsigned i = 0; i < path.nparts; i++) {
         PgPt *p = path.parts[i].pt;
-        switch (path.parts[i].form) {
+        switch (path.parts[i].type) {
         case PG_PART_MOVE:
             printf("pg_move(g, %g, %g);\n", p[0].x, p[0].y);
             break;
         case PG_PART_LINE:
-            printf("pg_line_to(g, %g, %g);\n", p[0].x, p[0].y);
+            printf("pg_line(g, %g, %g);\n", p[0].x, p[0].y);
             break;
         case PG_PART_CURVE3:
-            printf("pg_curve3_to(g, %g, %g, %g, %g);\n",
+            printf("pg_curve3(g, %g, %g, %g, %g);\n",
                 p[0].x, p[0].y, p[1].x, p[1].y);
             break;
         case PG_PART_CURVE4:
-            printf("pg_curve4_to(g, %g, %g, %g, %g, %g, %g);\n",
+            printf("pg_curve4(g, %g, %g, %g, %g, %g, %g);\n",
                 p[0].x, p[0].y, p[1].x, p[1].y, p[2].x, p[2].y);
             break;
         case PG_PART_CLOSE:
-            printf("pg_close(g); /* %g, %g */\n",
-                p[0].x, p[0].y);
+            printf("pg_close(g);\n");
             break;
         }
     }
