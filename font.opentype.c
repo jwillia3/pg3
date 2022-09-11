@@ -1622,7 +1622,7 @@ _number(PgFont *font, PgFontProp id)
     case PG_FONT_WIDTH_CLASS:   return (float) TW(os2, 6);
     case PG_FONT_STYLE_CLASS:   return (float) TB(os2, 30);
     case PG_FONT_STYLE_SUBCLASS:return (float) TB(os2, 31);
-    case PG_FONT_ANGLE:         return (float) (int32_t) TD(post, 4);
+    case PG_FONT_ANGLE:         return ((int32_t) TD(post, 4)) / 65536.0f;
     case PG_FONT_PANOSE_1:      return (float) TB(os2, 32);
     case PG_FONT_PANOSE_2:      return (float) TB(os2, 33);
     case PG_FONT_PANOSE_3:      return (float) TB(os2, 34);

@@ -18,6 +18,13 @@ static const PgPaint white_paint = {
     .nstops = 1,
 };
 
+PgPt
+pg_size(Pg *g) {
+    if (!g)
+        return zero();
+    return PgPt(g->sx, g->sy);
+}
+
 Pg
 pg_init_canvas(const PgCanvasImpl *v, float width, float height)
 {

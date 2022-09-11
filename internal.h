@@ -5,8 +5,6 @@
 #define new(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
 
 
-bool pg_wait(void);
-
 
 /*
     Platform Dependent.

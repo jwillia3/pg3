@@ -29,8 +29,6 @@ Backlog
   - Mitre limit
   - SVG Fonts
   - Underline respecting descenders
-  - ICCCM
-  - XKB, XIM, & XIC
 
 
 Optimisation
@@ -62,8 +60,6 @@ Planned Incompatibility
     - CFF CID-keyed fonts and FDSelect (Source Han Sans - JP)
     - Type2 CharStrings with 2-byte operators (computed and dynamic glyphs)
 
-  - X11
-    - XSETTINGS
 
 
 Robustness / Security
