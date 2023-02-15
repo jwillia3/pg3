@@ -3,8 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <threads.h>
-#include <stdatomic.h>
+#include <pthread.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <pg3.h>
@@ -12,25 +11,24 @@
 
 #define MAX_QUEUE   64
 
-static GLFWwindow   *win;
-static Pg           *g;
 static PgEvent      queue[MAX_QUEUE];
 static int          queue_count;
 static int          queue_index;
-static atomic_bool  is_waiting;
-static mtx_t        queue_mtx;
+static volatile bool is_waiting;
+static pthread_mutex_t queue_mtx;
 static bool         initialized;
+static char         **dropped_files;
 
 static int translate_key(int key);
 static int translate_mods(int mods);
-static int get_mods(void);
+static int get_mods(GLFWwindow *win);
 
 bool
 pg_enqueue(PgEvent evt)
 {
     bool    ok = true;
 
-    mtx_lock(&queue_mtx);
+    pthread_mutex_lock(&queue_mtx);
 
     if (queue_count < MAX_QUEUE) {
         queue[queue_index] = evt;
@@ -42,7 +40,7 @@ pg_enqueue(PgEvent evt)
     } else
         ok = false;
 
-    mtx_unlock(&queue_mtx);
+    pthread_mutex_unlock(&queue_mtx);
     return ok;
 }
 
@@ -55,7 +53,7 @@ dequeue(PgEvent *evt)
     if (!evt)
         return false;
 
-    mtx_lock(&queue_mtx);
+    pthread_mutex_lock(&queue_mtx);
 
     if (queue_count) {
         int i = queue_index - queue_count;
@@ -65,7 +63,7 @@ dequeue(PgEvent *evt)
     } else
         ok = false;
 
-    mtx_unlock(&queue_mtx);
+    pthread_mutex_unlock(&queue_mtx);
     return ok;
 }
 
@@ -73,7 +71,7 @@ static
 void
 resized(GLFWwindow *win, int width, int height)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_resize(g, width, height);
     pg_enqueue((PgEvent) { PG_RESIZE_EVENT, g, .resized={width, height} });
 }
@@ -82,7 +80,7 @@ static
 void
 update(GLFWwindow *win)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_enqueue((PgEvent) { PG_REDRAW_EVENT, g, {0} });
 }
 
@@ -90,7 +88,7 @@ static
 void
 closed(GLFWwindow *win)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_enqueue((PgEvent) { PG_CLOSE_EVENT, g, {0} });
 }
 
@@ -98,8 +96,8 @@ static
 void
 key_pressed(GLFWwindow *win, int key, int scancode, int action, int mods)
 {
-    (void) win;
     (void) scancode;
+    Pg *g = glfwGetWindowUserPointer(win);
     int type = action == GLFW_RELEASE? PG_KEY_UP_EVENT: PG_KEY_DOWN_EVENT;
     pg_enqueue((PgEvent) {
         type,
@@ -115,7 +113,7 @@ static
 void
 char_pressed(GLFWwindow *win, unsigned codepoint)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_enqueue((PgEvent) {
         PG_CHAR_EVENT,
         g,
@@ -127,8 +125,7 @@ static
 void
 button_pressed(GLFWwindow *win, int button, int action, int mods)
 {
-    (void) win;
-
+    Pg *g = glfwGetWindowUserPointer(win);
     int type = action == GLFW_RELEASE? PG_MOUSE_UP_EVENT: PG_MOUSE_DOWN_EVENT;
     double x, y;
     glfwGetCursorPos(win, &x, &y);
@@ -146,9 +143,36 @@ button_pressed(GLFWwindow *win, int button, int action, int mods)
 
 static
 void
+files_dropped(GLFWwindow *win, int npaths, const char **paths)
+{
+    Pg *g = glfwGetWindowUserPointer(win);
+
+    if (dropped_files) {
+        for (char **i = dropped_files; *i; i++)
+            free(*i);
+        free(dropped_files);
+    }
+
+    dropped_files = malloc((npaths + 1) * sizeof *paths);
+    for (int i = 0; i < npaths; i++)
+        dropped_files[i] = strdup(paths[i]);
+    dropped_files[npaths] = 0;
+
+    pg_enqueue((PgEvent) {
+        PG_FILES_DROPPED_EVENT,
+        g,
+        .dropped = {
+            .npaths = npaths,
+            .paths = (const char**) dropped_files,
+        }
+    });
+}
+
+static
+void
 mouse_moved(GLFWwindow *win, double x, double y)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_enqueue((PgEvent) {
         PG_MOUSE_MOVE_EVENT,
         g,
@@ -162,12 +186,13 @@ static
 void
 scroll(GLFWwindow *win, double x, double y)
 {
-    (void) win;
+    Pg *g = glfwGetWindowUserPointer(win);
     pg_enqueue((PgEvent) {
         PG_MOUSE_SCROLL_EVENT,
+        g,
         .mouse = {
             .scroll = PgPt(x, y),
-            .mods = get_mods(),
+            .mods = get_mods(win),
         }
     });
 }
@@ -186,7 +211,7 @@ pg_init_gui(void)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
 
-    mtx_init(&queue_mtx, mtx_plain);
+    pthread_mutex_init(&queue_mtx, 0);
 
     return true;
 }
@@ -205,8 +230,9 @@ pg_window(unsigned width, unsigned height, const char *title)
     if (!pg_init_gui())
         return 0;
 
-    win = glfwCreateWindow(width, height, title, 0, 0);
+    GLFWwindow *win = glfwCreateWindow(width, height, title, 0, 0);
     glfwMakeContextCurrent(win);
+    glfwSwapInterval(0);
     glfwSetFramebufferSizeCallback(win, resized);
     glfwSetWindowRefreshCallback(win, update);
     glfwSetWindowCloseCallback(win, closed);
@@ -215,12 +241,13 @@ pg_window(unsigned width, unsigned height, const char *title)
     glfwSetCursorPosCallback(win, mouse_moved);
     glfwSetScrollCallback(win, scroll);
     glfwSetCharCallback(win, char_pressed);
+    glfwSetDropCallback(win, files_dropped);
 
     glewInit();
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    g = pg_opengl((float) width, (float) height);
-
+    Pg *g = pg_opengl((float) width, (float) height);
+    g->sys = win;
     return g;
 }
 
@@ -231,7 +258,7 @@ pg_wait(PgEvent *evt)
     if (!evt)
         evt = &ignore;
 
-    *evt = (PgEvent) { PG_EVENT_NONE, 0, {0} };
+    *evt = (PgEvent) { PG_NO_EVENT, 0, {0} };
 
     if (dequeue(evt))
         return true;
@@ -246,15 +273,12 @@ pg_wait(PgEvent *evt)
 }
 
 void
-pg_update(void)
+pg_update(Pg *g)
 {
-    glfwSwapBuffers(win);
-}
+    if (!g)
+        return;
 
-Pg*
-pg_root_canvas(void)
-{
-    return g;
+    glfwSwapBuffers(g->sys);
 }
 
 static int key_map[GLFW_KEY_LAST + 1] = {
@@ -380,17 +404,29 @@ static int key_map[GLFW_KEY_LAST + 1] = {
     ['Z'] = 'Z',
 };
 
-static int translate_key(int key) {
+
+static
+int
+translate_key(int key)
+{
     if (key == -1)
         return 0;
     return key_map[key];
 }
 
-static int translate_mods(int mods) {
+
+static
+int
+translate_mods(int mods)
+{
     return mods;
 }
 
-static int get_mods(void) {
+
+static
+int
+get_mods(GLFWwindow *win)
+{
     bool shift = glfwGetKey(win, GLFW_KEY_LEFT_SHIFT) || glfwGetKey(win, GLFW_KEY_RIGHT_SHIFT);
     bool ctrl = glfwGetKey(win, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(win, GLFW_KEY_RIGHT_CONTROL);
     bool alt = glfwGetKey(win, GLFW_KEY_LEFT_ALT) || glfwGetKey(win, GLFW_KEY_RIGHT_ALT);
@@ -404,6 +440,19 @@ static int get_mods(void) {
            (sup? PG_MOD_WIN: 0) +
            (caps? PG_MOD_CAPS: 0) +
            (num? PG_MOD_NUM: 0);
+}
+
+const char*
+pg_get_clipboard(void)
+{
+    const char *original = glfwGetClipboardString(0);
+    return original? strdup(original): 0;
+}
+
+void
+pg_set_clipboard(const char *text)
+{
+    glfwSetClipboardString(0, text);
 }
 
 #endif

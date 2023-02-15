@@ -38,27 +38,27 @@ pg_xyz_to_rgb(PgColor xyz)
 
 
 PgColor
-pg_gamma_correct(PgColor rgb)
+pg_gamma_correct(PgColor rgb, float gamma)
 {
     float r = rgb.x;
     float g = rgb.y;
     float b = rgb.z;
     return (PgColor) {
-        r < 0.0031308f? 12.92f * r: 1.055f * powf(r, 1.0f / 2.20f) - 0.055f,
-        g < 0.0031308f? 12.92f * g: 1.055f * powf(g, 1.0f / 2.20f) - 0.055f,
-        b < 0.0031308f? 12.92f * b: 1.055f * powf(b, 1.0f / 2.20f) - 0.055f,
+        r < 0.0031308f? 12.92f * r: 1.055f * powf(r, 1.0f / gamma) - 0.055f,
+        g < 0.0031308f? 12.92f * g: 1.055f * powf(g, 1.0f / gamma) - 0.055f,
+        b < 0.0031308f? 12.92f * b: 1.055f * powf(b, 1.0f / gamma) - 0.055f,
         rgb.a
     };
 }
 
 
 PgColor
-pg_convert_color_to_srgb(PgColorSpace cspace, PgColor color)
+pg_convert_color_to_srgb(PgColorSpace cspace, PgColor color, float gamma)
 {
     return
-        cspace == PG_SRGB? pg_gamma_correct(color):
-        cspace == PG_LCHAB? pg_gamma_correct(pg_xyz_to_rgb(pg_lab_to_xyz(pg_lch_to_lab(color)))):
-        cspace == PG_LAB? pg_gamma_correct(pg_xyz_to_rgb(pg_lab_to_xyz(color))):
-        cspace == PG_XYZ? pg_gamma_correct(pg_xyz_to_rgb(color)):
+        cspace == PG_SRGB? pg_gamma_correct(color, gamma):
+        cspace == PG_LCHAB? pg_gamma_correct(pg_xyz_to_rgb(pg_lab_to_xyz(pg_lch_to_lab(color))), gamma):
+        cspace == PG_LAB? pg_gamma_correct(pg_xyz_to_rgb(pg_lab_to_xyz(color)), gamma):
+        cspace == PG_XYZ? pg_gamma_correct(pg_xyz_to_rgb(color), gamma):
         color;
 }

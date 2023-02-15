@@ -231,6 +231,24 @@ enum PgMods {
     PG_MOD_NUM =    0x20,
 };
 
+enum PgEventType {
+    PG_NO_EVENT,
+    PG_OPEN_EVENT,
+    PG_CLOSE_EVENT,
+    PG_RESIZE_EVENT,
+    PG_REDRAW_EVENT,
+    PG_KEY_DOWN_EVENT,
+    PG_KEY_UP_EVENT,
+    PG_CHAR_EVENT,
+    PG_MOUSE_DOWN_EVENT,
+    PG_MOUSE_UP_EVENT,
+    PG_MOUSE_MOVE_EVENT,
+    PG_MOUSE_SCROLL_EVENT,
+    PG_FILES_DROPPED_EVENT,
+    PG_USER_EVENT,
+    PG_USER_LAST_EVENT = 256,
+};
+
 
 typedef enum PgPartType     PgPartType;
 typedef enum PgPaintType    PgPaintType;
@@ -241,6 +259,7 @@ typedef enum PgTextPos      PgTextPos;
 typedef enum PgFontProp     PgFontProp;
 typedef enum PgKey          PgKey;
 typedef enum PgMods         PgMods;
+typedef enum PgEventType    PgEventType;
 
 
 struct PgPt {
@@ -289,6 +308,7 @@ struct PgState {
     PgLineCap           line_cap;
     float               flatness;
     PgFillRule          fill_rule;
+    float               gamma;
     float               clip_x;
     float               clip_y;
     float               clip_sx;
@@ -299,6 +319,8 @@ struct PgState {
 
 struct Pg {
     const PgCanvasImpl  *v;
+    void                *user;
+    void                *sys;
     float               sx;
     float               sy;
     PgPath              *path;
@@ -316,44 +338,13 @@ struct PgSubcanvas {
     float   sy;
 };
 
-struct PgGroup {
-    float   x;
-    float   y;
-    float   max_x;
-    float   max_y;
-    float   abs_x;
-    float   abs_y;
-    float   pad_x;
-    float   pad_y;
-    bool    horiz;
-    Pg      *canvas;
-    void    *data;
-    void    (*end)(PgGroup *group);
-};
-
-typedef enum PgEventType {
-    PG_EVENT_NONE,
-    PG_OPEN_EVENT,
-    PG_CLOSE_EVENT,
-    PG_RESIZE_EVENT,
-    PG_REDRAW_EVENT,
-    PG_KEY_DOWN_EVENT,
-    PG_KEY_UP_EVENT,
-    PG_CHAR_EVENT,
-    PG_MOUSE_DOWN_EVENT,
-    PG_MOUSE_UP_EVENT,
-    PG_MOUSE_MOVE_EVENT,
-    PG_MOUSE_SCROLL_EVENT,
-    PG_USER_EVENT,
-    PG_USER_LAST_EVENT = 256,
-} PgEventType;
-
 struct PgEvent {
     PgEventType type;
     Pg          *g;
     union {
         int         ignore;
         uint32_t    codepoint;
+        void        *user;
 
         struct {
             int     width;
@@ -371,6 +362,11 @@ struct PgEvent {
             int     button;
             int     mods;
         } mouse;
+
+        struct {
+            int         npaths;
+            const char  **paths;
+        } dropped;
     };
 };
 
@@ -434,6 +430,8 @@ void pg_shutdown(void);
 Pg *pg_opengl(float width, float height);
 Pg *pg_subcanvas(Pg *parent, float x, float y, float sx, float sy);
 void pg_free(Pg *g);
+void *pg_user(Pg *g);
+void pg_set_user(Pg *g, void *user);
 
 
 void pg_resize(Pg *g, float width, float height);
@@ -442,6 +440,7 @@ PgPt pg_size(Pg *g);
 bool pg_restore(Pg *g);
 bool pg_save(Pg *g);
 void pg_reset_state(Pg *g);
+Pg pg_init_canvas(const PgCanvasImpl *v, float width, float height);
 
 void pg_reset_path(Pg *g);
 void pg_move(Pg *g, float x, float y);
@@ -449,8 +448,8 @@ void pg_rmove(Pg *g, float x, float y);
 void pg_line(Pg *g, float x, float y);
 void pg_rline(Pg *g, float x, float y);
 void pg_curve3(Pg *g, float bx, float by, float cx, float cy);
-void pg_curve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 void pg_rcurve3(Pg *g, float bx, float by, float cx, float cy);
+void pg_curve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 void pg_rcurve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 void pg_rectangle(Pg *g, float x, float y, float sx, float sy);
 void pg_rounded(Pg *g, float x, float y, float sx, float sy, float rx, float ry);
@@ -474,10 +473,12 @@ void pg_set_clear(Pg *g, const PgPaint *paint);
 void pg_set_line_width(Pg *g, float line_width);
 void pg_set_line_cap(Pg *g, PgLineCap line_cap);
 void pg_set_flatness(Pg *g, float flatness);
+void pg_set_gamma(Pg *g, float gamma);
 void pg_set_fill_rule(Pg *g, PgFillRule fill_rule);
 void pg_set_clip(Pg *g, float x, float y, float sx, float sy);
 void pg_set_text_pos(Pg *g, PgTextPos text_pos);
 void pg_set_underline(Pg *g, bool underline);
+void pg_reset_clip(Pg *g);
 
 PgTM pg_get_tm(Pg *g);
 const PgPaint *pg_get_fill(Pg *g);
@@ -486,6 +487,7 @@ const PgPaint *pg_get_clear(Pg *g);
 float pg_get_line_width(Pg *g);
 PgLineCap pg_get_line_cap(Pg *g);
 float pg_get_flatness(Pg *g);
+float pg_get_gamma(Pg *g);
 PgFillRule pg_get_fill_rule(Pg *g);
 PgPt pg_get_clip_start(Pg *g);
 PgPt pg_get_clip_size(Pg *g);
@@ -493,17 +495,16 @@ PgTextPos pg_get_text_pos(Pg *g);
 bool pg_get_underline(Pg *g);
 
 
-Pg pg_init_canvas(const PgCanvasImpl *v, float width, float height);
-
 
 // GUI.
 bool pg_init_gui(void);
 PgPt pg_dpi(void);
-void pg_update(void);
-Pg* pg_root_canvas(void);
+void pg_update(Pg *g);
 Pg *pg_window(unsigned width, unsigned height, const char *title);
 bool pg_wait(PgEvent *evt);
 bool pg_enqueue(PgEvent evt);
+const char *pg_get_clipboard(void);
+void pg_set_clipboard(const char *text);
 
 
 
@@ -531,27 +532,37 @@ void pg_path_append(PgPath *path, const PgPath *src);
 
 // Paint.
 PgPaint pg_linear(PgColorSpace cspace, float ax, float ay, float bx, float by);
-PgPaint pg_solid(PgColorSpace cspace, float x, float y, float z, float a);
-void pg_add_stop(PgPaint *paint, float t, float x, float y, float z, float a);
+PgPaint pg_solid(PgColorSpace cspace, float u, float v, float w, float a);
+void pg_add_stop(PgPaint *paint, float t, float u, float v, float w, float a);
 
 PgColor pg_lch_to_lab(PgColor lch);
 PgColor pg_lab_to_xyz(PgColor lab);
 PgColor pg_xyz_to_rgb(PgColor xyz);
-PgColor pg_gamma_correct(PgColor rgb);
-PgColor pg_convert_color_to_srgb(PgColorSpace cspace, PgColor color);
+PgColor pg_gamma_correct(PgColor rgb, float gamma);
+PgColor pg_convert_color_to_srgb(PgColorSpace cspace, PgColor color, float gamma);
 
 
 
 // Font.
 
 PgFont *pg_find_font(const char *family, unsigned weight, bool italic);
+unsigned pg_get_family_count(void);
 PgFamily *pg_list_fonts(void);
+void pg_free_font(PgFont *font);
+PgFont *pg_open_font(const uint8_t *data, size_t size, unsigned index);
+PgFont *pg_open_font_file(const char *path, unsigned index);
+PgFont *pg_open_otf_font(const uint8_t *data, size_t size, unsigned index);
 
 PgFont *pg_scale_font(PgFont *font, float sx, float sy);
 float pg_font_height(PgFont *font);
+float pg_measure_char(PgFont *font, uint32_t codepoint);
+float pg_measure_chars(PgFont *font, const char *str, size_t nbytes);
+float pg_measure_glyph(PgFont *font, uint32_t glyph);
+float pg_measure_string(PgFont *font, const char *str);
+unsigned pg_fit_chars(PgFont *font, const char *s, size_t nbytes, float width);
+unsigned pg_fit_string(PgFont *font, const char *str, float width);
 
-void pg_free_font(PgFont *font);
-
+unsigned pg_get_glyph(PgFont *font, uint32_t codepoint);
 float pg_char_path(Pg *g, PgFont *font, float x, float y, uint32_t codepoint);
 float pg_chars_path(Pg *g, PgFont *font, float x, float y, const char *str, size_t nbytes);
 float pg_glyph_path(Pg *g, PgFont *font, float x, float y, uint32_t glyph);
@@ -559,23 +570,10 @@ float pg_string_path(Pg *g, PgFont *font, float x, float y, const char *str);
 float pg_printf(Pg *g, PgFont *font, float x, float y, const char *str, ...);
 float pg_vprintf(Pg *g, PgFont *font, float x, float y, const char *str, va_list ap);
 
-float pg_measure_char(PgFont *font, uint32_t codepoint);
-float pg_measure_chars(PgFont *font, const char *str, size_t nbytes);
-float pg_measure_glyph(PgFont *font, uint32_t glyph);
-float pg_measure_string(PgFont *font, const char *str);
-
-unsigned pg_fit_chars(PgFont *font, const char *s, size_t nbytes, float width);
-unsigned pg_fit_string(PgFont *font, const char *str, float width);
-
-unsigned pg_get_glyph(PgFont *font, uint32_t codepoint);
-
 const char *pg_font_string(PgFont *font, PgFontProp id);
 float pg_font_number(PgFont *font, PgFontProp id);
 int pg_font_int(PgFont *font, PgFontProp id);
 
-PgFont *pg_open_font(const uint8_t *data, size_t size, unsigned index);
-PgFont *pg_open_font_file(const char *path, unsigned index);
-PgFont *pg_open_otf_font(const uint8_t *data, size_t size, unsigned index);
 
 PgFont pg_init_font(const PgFontImpl *v, const uint8_t *data, size_t size, unsigned index);
 

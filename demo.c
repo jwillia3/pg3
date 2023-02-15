@@ -1,262 +1,387 @@
+#include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdatomic.h>
-#include <threads.h>
-#include <time.h>
 #include <pg3.h>
 
-#define FPS 120
-#define SCROLLBACK  10000
+Pg      *g;
+PgFont  *ui_font;
+unsigned demo;
 
-#define MIN(X, Y) (X < Y? X: Y)
-#define MAX(X, Y) (X > Y? X: Y)
+void redraw(void);
+void intro_demo(void);
+void intro_key(int key, int mod);
+void chicago_demo(void);
+void fontmgr_init(void);
+void fontmgr_demo(void);
+void fontmgr_key(int key, int mod);
 
-static volatile char    **_lines;
-static volatile int     _nlines;
-static volatile int     _cur;
-static volatile float   _font_size = 10.0;
-static atomic_bool      paused = false;
-static atomic_bool      redraw;
-static atomic_bool      terminate;
-static mtx_t            lines_mtx;
-
-
-void append(char *text)
-{
-    mtx_lock(&lines_mtx);
-
-    if (_nlines >= SCROLLBACK) {
-        free((void*) _lines[0]);
-        for (int i = 1; i < SCROLLBACK; i++)
-            _lines[i - 1] = _lines[i];
-        _nlines = SCROLLBACK - 1;
-        // _lines = realloc(_lines, (_nlines + SCROLLBACK) * sizeof *_lines);
+struct demo {
+    char *desc;
+    void (*init)(void);
+    void (*draw)(void);
+    void (*key)(int key, int mod);
+}
+demos[] = {
+    {
+        .desc="Intro",
+        .draw=intro_demo,
+        .key=intro_key,
+    },
+    {
+        .desc="Draw Chicago Six-Point Stars",
+        .draw=chicago_demo,
+        .key=intro_key,
+    },
+    {
+        .desc="Font explorer",
+        .init=fontmgr_init,
+        .draw=fontmgr_demo,
+        .key=fontmgr_key,
     }
+};
+#define NDEMOS (sizeof demos / sizeof *demos)
 
-    _lines[_nlines++] = strdup(text);
+char lorem_ipsum[] =
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse"
+        " hendrerit, orci et ultricies mattis, erat nisi dignissim felis, sit"
+        " amet aliquam nulla felis sed nibh. Proin ac elit non urna fringilla"
+        " varius quis et libero. Nullam venenatis et turpis eu ullamcorper."
+        " Nunc aliquet ante in dapibus aliquam. Cras sed euismod felis. Proin"
+        " non commodo tellus. Duis in quam a dui ultrices molestie eu id"
+        " mauris. Donec sed tempor purus, sed tempus massa. Proin leo sapien,"
+        " mollis sed lectus eu, viverra fermentum odio. Nunc a elementum ipsum."
+        " Vestibulum nec augue enim. Aenean volutpat dui eget mauris egestas,"
+        " id tincidunt turpis blandit. Curabitur at pulvinar orci. Pellentesque"
+        " habitant morbi tristique senectus et netus et malesuada fames ac"
+        " turpis egestas. Sed ullamcorper ipsum ipsum. Integer molestie orci"
+        " vel tristique tincidunt.\n"
+        "Nam rhoncus enim a est imperdiet tempor. Mauris vehicula ullamcorper"
+        " tellus. Cras vel felis turpis. Aenean nisi turpis, imperdiet"
+        " vestibulum eleifend vitae, consequat sagittis mi. Duis iaculis"
+        " mauris ligula, vitae convallis velit accumsan vitae. Nunc et urna"
+        " viverra, luctus dolor eget, mattis ex. Duis eu tempus ipsum, sit"
+        " amet auctor lectus. Curabitur bibendum semper magna vitae tempor."
+        " In cursus dignissim nunc ac semper. Mauris at mauris eget neque"
+        " lacinia sagittis nec vel purus. Vivamus elementum velit eros, non"
+        " vulputate metus fermentum eu. Fusce semper augue eu velit venenatis,"
+        " sit amet aliquam urna tincidunt. Vestibulum ante ipsum primis in"
+        " faucibus orci luctus et ultrices posuere cubilia curae.\n"
+        "Class aptent taciti sociosqu ad litora torquent per conubia nostra,"
+        " per inceptos himenaeos. Pellentesque in pulvinar risus. Donec auctor"
+        " luctus purus in porta. Nullam dui enim, ullamcorper quis ornare at,"
+        " condimentum at ante. Suspendisse augue leo, aliquet et congue ut,"
+        " sollicitudin non augue. Duis cursus erat id semper mollis."
+        " Suspendisse feugiat id odio in vehicula. Aliquam metus massa, ultrices"
+        " ut nibh at, hendrerit lacinia nisi. Duis sagittis ante tortor, sit amet"
+        " ultricies nisl lobortis ornare. Maecenas ac accumsan felis, id blandit"
+        " eros. Fusce tincidunt ullamcorper nunc, sit amet volutpat lorem"
+        " eleifend ac. In hac habitasse platea dictumst.\n"
+        "In commodo ligula ac velit pulvinar, sed blandit nisi fringilla."
+        " Aenean at nulla eu dolor laoreet convallis. Sed ut justo nisl. Nulla"
+        " viverra mauris ac leo efficitur feugiat. Vivamus nec quam auctor neque"
+        " porta condimentum. Proin sit amet ligula at enim auctor maximus sed ut"
+        " ante. Fusce eu posuere quam. Nam fermentum ante non turpis mattis, ac"
+        " blandit nisl eleifend. Maecenas nibh libero, sollicitudin sed"
+        " hendrerit id, commodo id lorem.\n"
+        "Maecenas efficitur hendrerit metus, eget fringilla elit condimentum"
+        " non. Aenean bibendum vestibulum turpis, non laoreet neque sodales"
+        " eget. Pellentesque nec quam nunc. Donec imperdiet leo mi, eget"
+        " malesuada nibh interdum eu. Nunc ut tortor sed neque ultricies"
+        " imperdiet. Nam at magna ut lacus condimentum luctus sed sit amet"
+        " purus. Mauris sed consequat risus, vestibulum scelerisque lacus."
+        " Donec egestas lacus velit, eget laoreet erat imperdiet vel. Mauris"
+        " non ipsum metus. Suspendisse ultricies ornare consectetur. Maecenas"
+        " eleifend, est in dapibus pellentesque, lorem est sagittis risus,"
+        " interdum suscipit odio velit ut felis. Maecenas eget sem quis nunc"
+        " ultrices placerat.\n";
 
-    mtx_unlock(&lines_mtx);
+void
+star(PgPt p, float size, float points)
+{
+    float f = size; // full size
+    float h = size * 0.5f; // half size
+    for (float i = 0; i <= points; i++) {
+        float tf = 2.0f * 3.14159f * i / points - 3.14159f / 2.0f;
+        float th = 2.0f * 3.14159f * (i + 0.5f) / points - 3.14159f / 2.0f;
+        if (i == points)
+            pg_close(g);
+        else {
+            if (i == 0)
+                pg_move(g, p.x + cosf(tf) * f, p.y + sinf(tf) * f);
+            else
+                pg_line(g, p.x + cosf(tf) * f, p.y + sinf(tf) * f);
+            pg_line(g, p.x + cosf(th) * h, p.y + sinf(th) * h);
+        }
+    }
 }
 
-void draw(Pg *g, PgFont *font)
+void
+intro_demo(void)
 {
-    mtx_lock(&lines_mtx);
-
-    /*
-        Copy the state data and release the lock.
-        Only work on the copy from this point on.
-     */
-
-    pg_scale_font(font, 0.0f, _font_size * pg_dpi().y / 72.0f);
-
-    PgPt    size = pg_size(g);
-    float   line_height = pg_font_height(font);
-    int     nlines = _nlines;
-    int     cur = _cur;
-    int     fits = size.y / line_height;
-    int     first = MAX(MIN(nlines - fits, cur), 0);
-    int     last = MIN(first + fits, nlines);
-
-    char    **copy = malloc((last - first) * sizeof *copy);
-    for (int i = 0; i < last - first; i++)
-        copy[i] = strdup((void*) _lines[i + first]);
-
-    if (!paused)
-        _cur = MAX(0, nlines - fits);
-
-    mtx_unlock(&lines_mtx);
-
-
-    // Ensure the size is correct since the message loop thread
-    // cannot call OpenGL.
-    pg_resize(g, size.x, size.y);
-
-    pg_identity(g);
-
-    PgPaint bg = pg_linear(PG_LCHAB, 0.0, 0.0, size.x, 0);
-    pg_add_stop(&bg, 0.0, 0.6, 0.1, 0.775, 1.0);
-    pg_add_stop(&bg, 0.5, 0.8, 0.1, 0.775, 1.0);
-    pg_add_stop(&bg, 1.0, 0.5, 0.1, 0.775, 1.0);
-
-    pg_set_clear(g, &bg);
-    pg_clear(g);
-
-    PgPaint fg = pg_solid(PG_LCHAB, 0.025, 0.0, 0.0, 1.0);
+    PgPaint fg = pg_solid(PG_LCHAB, 0.125f, 0.0, 0.0, 1.0);
     pg_set_fill(g, &fg);
 
-    float   y = 0;
-    for (int i = 0; i < last - first; i++) {
-        pg_string_path(g, font, 4.0f, y, copy[i]);
+    pg_printf(g, ui_font, 0, 0, "Select demo with TAB");
+    pg_fill(g);
+
+    float line_height = pg_font_height(ui_font) * 1.1;
+    float y = line_height;
+    for (int i = 0; i < NDEMOS; i++, y += line_height) {
+        pg_printf(g, ui_font, 0, y, "%d: %s", i + 1, demos[i].desc);
         pg_fill(g);
-        y += line_height;
-        free(copy[i]);
     }
-    free(copy);
+}
 
-    bg = pg_solid(PG_LCHAB, 0.75, 0.5, 0.3, 0.25);
-    fg = pg_solid(PG_LCHAB, 0.75, 0.5, 0.3, 1.0);
-    pg_set_fill(g, &bg);
-    pg_set_stroke(g, &fg);
-    y = (cur - first) * line_height;
-    pg_rounded(g, 0, y, size.x, line_height, 8.0, 8.0);
+void
+intro_key(int key, int mod)
+{
+    if (key >= '1' && key <= '9') {
+        if (key - '1' < NDEMOS)
+            demo = key - '1';
+        redraw();
+    }
+}
+
+void
+chicago_demo(void)
+{
+    PgPaint fill = pg_solid(PG_LCHAB, 0.125f, 0.3f, 0.09f, 1.0f);
+    PgPaint stroke = pg_solid(PG_LCHAB, 0.125f, 0.3f, 0.65f, 1.0f);
+    pg_save(g);
+    pg_set_fill(g, &fill);
+    pg_set_stroke(g, &stroke);
+    pg_set_line_width(g, 10.0f);
+    pg_translate(g, pg_size(g).x / 2.0f - 300.0f, pg_size(g).y / 2.0f - 25.0f);
+    star(PgPt(000, 0), 50, 6);
+    star(PgPt(200, 0), 50, 6);
+    star(PgPt(400, 0), 50, 6);
+    star(PgPt(600, 0), 50, 6);
     pg_fill_stroke(g);
-
-
-
-    pg_update();
+    pg_restore(g);
 }
 
-int render_thread(void *_ignore)
+struct {
+    int         sel;
+    PgFamily    *families;
+    int         nfamilies;
+    int         weight;
+    bool        italic;
+    PgFont      *the_font;
+    float       line_height;
+    float       size;
+    char        *example;
+} fontmgr;
+
+void
+fontmgr_init(void)
 {
-    (void) _ignore;
-
-    struct timespec sleep_time = {.tv_nsec = 1000000000 / FPS};
-
-    Pg      *g = pg_window(1024, 768, "Demo");
-
-    char    *family_name = "Courier Prime";
-    PgFont  *font = pg_find_font(family_name, 400, false);
-    if (!font) {
-        printf("cannot open font: %s", family_name);
-        return 1;
-    }
-
-    while (!terminate) {
-        while (!redraw && !terminate)
-            thrd_sleep(&sleep_time, 0);
-        redraw = false;
-        draw(g, font);
-    }
-
-    return 0;
+    fontmgr.weight = 400;
+    fontmgr.line_height = 1.3;
+    fontmgr.size = 11.5;
+    fontmgr.example = lorem_ipsum;
 }
 
-int feed_thread(void *_ignore)
+void
+fontmgr_demo(void)
 {
-    (void) _ignore;
+    PgPaint sel_fg = pg_solid(PG_LCHAB, 0.125, 0.3, 0.09, 1.0);
+    PgPaint fg = pg_solid(PG_LCHAB, 0.125, 0.0, 0.0, 1.0);
+    PgPaint bg = pg_solid(PG_LCHAB, 0.95, 0.0, 0.0, 1.0);
+    pg_set_fill(g, &fg);
+    pg_set_clear(g, &bg);
 
-    char    *filename = "war-and-peace.txt";
-    FILE    *src = fopen(filename, "rb");
-    char    *buf = 0;
-    size_t  allocated = 0;
+    PgFont      *font;
+    float       dpi = pg_dpi().y;
+    float       screen_height = pg_size(g).y;
+    float       line_height = pg_font_height(ui_font) * 1.25;
+    int         fit = floor(screen_height / line_height) - 1;
+    int         top = fontmgr.sel >= fit? fontmgr.sel - fit: 0;
+    float       max_x = 0;
+    float       y = 0;
 
-    if (!src) {
-        char    tmp[256];
-        snprintf(tmp, sizeof tmp, "could not open: %s", filename);
-        append(tmp);
-        return 1;
+    pg_clear(g);
+
+    /*
+        Recalculate the font list.
+    */
+    fontmgr.families = pg_list_fonts();
+    fontmgr.nfamilies = 0;
+    while (fontmgr.families[fontmgr.nfamilies].name) fontmgr.nfamilies++;
+
+    /*
+        Remake the font if its changed since last time.
+    */
+    if (!fontmgr.the_font) {
+        PgFamily fam = fontmgr.families[fontmgr.sel];
+        fontmgr.the_font = pg_find_font(fam.name, fontmgr.weight, fontmgr.italic);
+        pg_scale_font(fontmgr.the_font, fontmgr.size * dpi / 72.0, 0.0);
     }
 
-    while (!feof(src) && !terminate) {
-        size_t  len = getline(&buf, &allocated, src);
-        while (len && buf[len - 1] == '\n') {
-            buf[len - 1] = 0;
-            len--;
+    for (int i = top; i < fontmgr.nfamilies && y < screen_height; i++) {
+        float x = pg_printf(g, ui_font, 0, y, "%s", fontmgr.families[i].name);
+        max_x = fmaxf(max_x, x);
+
+        if (i == fontmgr.sel) {
+            pg_set_fill(g, &sel_fg);
+            pg_fill(g);
+            pg_set_fill(g, &fg);
+        } else
+            pg_fill(g);
+
+        y += line_height;
+    }
+    max_x += 8;
+
+    PgFamily    fam = fontmgr.families[fontmgr.sel];
+    float       x = max_x;
+    float       main_y;
+    y = 0;
+
+    pg_scale_font(ui_font, 48.0 * dpi / 72.0, 0.0);
+    pg_printf(g, ui_font, x, y, "%s", fam.name);
+    pg_fill(g);
+    y += pg_font_height(ui_font) * 1.25;
+
+    pg_scale_font(ui_font, 12.0 * dpi / 72.0, 0.0);
+    pg_printf(g, ui_font, x, y, "W: Select weight: %d", fontmgr.weight);
+    pg_fill(g);
+    y += line_height;
+    pg_printf(g, ui_font, x, y, "I: Italic: %s", fontmgr.italic? "ON": "OFF");
+    pg_fill(g);
+    y += line_height;
+    pg_printf(g, ui_font, x, y, "L: Line Height: %g", fontmgr.line_height);
+    pg_fill(g);
+    y += line_height;
+    pg_printf(g, ui_font, x, y, "S: Size: %g", fontmgr.size);
+    pg_fill(g);
+    y += line_height;
+    y += line_height;
+    main_y = y;
+
+    font = fontmgr.the_font;
+    line_height = pg_font_height(font) * fontmgr.line_height;
+
+    x = max_x, y = main_y;
+    {
+        char    *e = fontmgr.example;
+        while (*e && y < screen_height) {
+            int     i = 0;
+            int     len = strcspn(e, "\n");
+            float   avail = pg_size(g).x - x - 10;
+            while (i < len && y < screen_height) {
+                pg_set_text_pos(g, PG_TEXT_POS_TOP);
+
+                int n = pg_fit_chars(font, e + i, len - i, avail);
+                pg_chars_path(g, font, x, y, e + i, n);
+                pg_fill(g);
+                i += n;
+                y += line_height;
+            }
+            y += line_height;
+            e += len;
+            if (*e == '\n') e++;
         }
-        if (!feof(src))
-            append(buf);
-
-        if (!paused)
-            pg_enqueue((PgEvent) { PG_USER_EVENT });
     }
 
-    fclose(src);
-    free(buf);
-    return 0;
+    pg_update(g);
 }
 
-int main(int argc, char **argv)
+void
+fontmgr_key(int key, int mod)
 {
+    if (key == PG_KEY_DOWN) {
+        if (++fontmgr.sel >= fontmgr.nfamilies)
+            fontmgr.sel = fontmgr.nfamilies - 1;
+        goto changed_font;
+    }
+    else if (key == PG_KEY_UP) {
+        if (--fontmgr.sel < 0)
+            fontmgr.sel = 0;
+        goto changed_font;
+    }
+    else if (key == 'I') {
+        fontmgr.italic ^= 1;
+        goto changed_font;
+    }
+    else if (key == 'W') {
+        fontmgr.weight += 100 * (mod & PG_MOD_SHIFT ? -1: 1);
+        goto changed_font;
+    }
+    else if (key == 'L') {
+        fontmgr.line_height += 0.1 * (mod & PG_MOD_SHIFT ? -1: 1);
+        goto changed_font;
+    }
+    else if (key == 'S') {
+        fontmgr.size += 1 * (mod & PG_MOD_SHIFT ? -1: 1);
+        goto changed_font;
+    }
+
+    return;
+
+    changed_font:
+    pg_free_font(fontmgr.the_font);
+    fontmgr.the_font = 0;
+    redraw();
+}
+
+void
+redraw(void)
+{
+    PgPaint     clear = pg_solid(PG_LCHAB, 1.0f, 0.0f, 0.0f, 1.0f);
+
+    pg_set_clear(g, &clear);
+    pg_clear(g);
+
+    demos[demo % NDEMOS].draw();
+    pg_update(g);
+}
+
+int main(int argc, char **argv) {
     setvbuf(stdout, 0, _IONBF, 0);
 
-    _lines = malloc(SCROLLBACK * sizeof *_lines);
+    for (int i = 0; i < NDEMOS; i++)
+        if (demos[i].init) demos[i].init();
 
-    thrd_t  feed_tid;
-    thrd_t  render_tid;
-    thrd_create(&feed_tid, feed_thread, 0);
-    thrd_create(&render_tid, render_thread, 0);
+    g = pg_window(800, 800, "Demo");
 
-    PgEvent evt;
-    while (pg_wait(&evt) && !terminate)
-        switch (evt.type) {
+    ui_font = pg_find_font("system-ui, sans-serif, any", 500, false);
+    pg_scale_font(ui_font, 12.0 * pg_dpi().x / 72.0, 0.0);
 
-        case PG_USER_EVENT:
-            redraw = true;
-            break;
+    for (PgEvent e; pg_wait(&e); )
+        switch (e.type) {
 
         case PG_REDRAW_EVENT:
-            redraw = true;
+            redraw();
             break;
 
         case PG_RESIZE_EVENT:
-            redraw = true;
-            break;
-
-        case PG_MOUSE_DOWN_EVENT:
-            break;
-
-        case PG_KEY_DOWN_EVENT:
-            switch (evt.key.key) {
-
-            case ' ':
-                paused = !paused;
-                redraw = true;
-                break;
-
-            case 'W':
-                if (evt.key.mods == PG_MOD_CTRL)
-                    terminate = true;
-                break;
-
-            case PG_KEY_UP:
-                _cur--;
-                redraw = true;
-                break;
-
-            case PG_KEY_DOWN:
-                _cur++;
-                redraw = true;
-                break;
-
-            case PG_KEY_PAGE_UP:
-                _cur -= 10;
-                redraw = true;
-                break;
-
-            case PG_KEY_PAGE_DOWN:
-                _cur += 10;
-                redraw = true;
-                break;
-
-            case PG_KEY_HOME:
-                _cur = 0;
-                redraw = true;
-                break;
-
-            case PG_KEY_END:
-                _cur = _nlines;
-                redraw = true;
-                break;
-
-            }
-            break;
-
-        case PG_MOUSE_SCROLL_EVENT:
-            if (evt.mouse.mods == PG_MOD_CTRL)
-                _font_size *= 1.00 + (evt.mouse.scroll.y * 0.25);
-            else {
-                _cur -= evt.mouse.scroll.y * 5;
-                paused = true;
-            }
-            redraw = true;
+            pg_resize(g, e.resized.width, e.resized.height);
+            redraw();
             break;
 
         case PG_CLOSE_EVENT:
-            terminate = true;
+            goto end;
+
+        case PG_KEY_DOWN_EVENT:
+            if (e.key.mods & PG_MOD_CTRL && e.key.key == 'W')
+                goto end;
+            else if (~e.key.mods & PG_MOD_SHIFT && e.key.key == PG_KEY_TAB) {
+                demo = (demo + 1) % NDEMOS;
+                redraw();
+            } else if (e.key.mods & PG_MOD_SHIFT && e.key.key == PG_KEY_TAB) {
+                demo = (demo - 1) % NDEMOS;
+                redraw();
+            }
+            else if (demos[demo].key)
+                demos[demo].key(e.key.key, e.key.mods);
+            break;
+
+        default:
             break;
         }
 
-    int _ignore;
-    thrd_join(render_tid, &_ignore); // Wait for render before exiting.
+    end:
+    return 0;
 }

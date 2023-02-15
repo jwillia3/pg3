@@ -12,6 +12,8 @@
 void *_pgmap_file(const char *path, size_t *sizep);
 void _pgunmap_file(void *ptr, size_t size);
 
+const char *_pg_advise_family_replace(const char *family);
+
 char **_pgget_font_files(void);
 
 void _pg_free_font_list(void);

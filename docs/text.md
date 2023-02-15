@@ -64,6 +64,9 @@ The fonts of the system can be listed with `pg_list_fonts()`. An
 array of `PgFamily` is returned in alphabetical order by family
 name. The array is terminated by a `PgFamily` with a NULL name.
 
+Alternatively, you can call `pg_get_family_count()` to get the
+number of font families in advance.
+
     for (PgFamily *fam = pg_list_fonts(); fam->name; fam++)
         for (PgFace *face = fam->faces; face->family; face++)
             printf("%s %s\n", fam->name, face->style);

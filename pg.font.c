@@ -1,13 +1,14 @@
-#include <pg3.h>
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pg3.h>
 #include <internal.h>
 
 
 static PgFamily *_families;
-
+static unsigned _nfamilies;
 
 static int
 compare_face(const void *ap, const void *bp)
@@ -46,6 +47,13 @@ _pg_free_font_list(void)
     }
 
     free(_families);
+}
+
+
+unsigned
+pg_get_family_count(void) {
+    pg_list_fonts();
+    return _nfamilies;
 }
 
 
@@ -127,20 +135,40 @@ pg_list_fonts(void)
     free(faces);
 
     _families = families;
+    _nfamilies = nfamilies;
     return families;
 }
 
 
+
+static
 PgFont*
-pg_find_font(const char *family, unsigned weight, bool italic)
+find_single_font(const char *family, unsigned weight, bool italic)
 {
     if (!family)
         return 0;
 
+    // Search for family name in the list.
     PgFamily *fam = pg_list_fonts();
-
     while (fam->name && stricmp(fam->name, family))
         fam++;
+
+    // Ask the host system for replacement advice.
+    const char *replacement = _pg_advise_family_replace(family);
+    if (replacement) {
+        PgFamily *search = pg_list_fonts();
+        while (search->name && stricmp(search->name, replacement))
+            search++;
+        if (search->name)
+            fam = search;
+        free((void*) replacement);
+        replacement = 0;
+    }
+
+    // Last resort: use the first font in the list.
+    if (!stricmp(family, "any") || !stricmp(family, "default"))
+        fam = pg_list_fonts();
+
     if (!fam->name)
         return 0;
 
@@ -152,20 +180,42 @@ pg_find_font(const char *family, unsigned weight, bool italic)
     PgFace  *best = fam->faces;
     int     bestscore = -1000;
 
-    for (PgFace *fac = fam->faces; fac->family; fac++) {
+    for (PgFace *face = fam->faces; face->family; face++) {
         int score =
-            -abs((int) 5 - (int) fac->width)             * 10
-            -abs((int) weight - (int) fac->weight) / 100 * 3
-            -abs((int) italic - (int) fac->is_italic)    * 2
+            -abs((int) 5 - (int) face->width)             * 10
+            -abs((int) weight - (int) face->weight) / 100 * 3
+            -abs((int) italic - (int) face->is_italic)    * 2
             + 0;
 
         if (score > bestscore) {
-            best = fac;
+            best = face;
             bestscore = score;
         }
     }
 
     return pg_open_font_file(best->path, best->index);
+}
+
+
+PgFont*
+pg_find_font(const char *family_options, unsigned weight, bool italic)
+{
+    if (!family_options)
+        return 0;
+
+    char    *options = strdup(family_options);
+    char    *prev = 0;
+    char    *family;
+    PgFont  *font = 0;
+    for (family = strtok_r(options, ",", &prev);
+         !font && family;
+         family = strtok_r(0, ",", &prev))
+    {
+        while (*family && isspace(*family)) family++;
+        font = find_single_font(family, weight, italic);
+    }
+    free(options);
+    return font;
 }
 
 

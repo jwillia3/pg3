@@ -18,12 +18,30 @@ static const PgPaint white_paint = {
     .nstops = 1,
 };
 
+
 PgPt
-pg_size(Pg *g) {
+pg_size(Pg *g)
+{
     if (!g)
         return zero();
     return PgPt(g->sx, g->sy);
 }
+
+
+void*
+pg_user(Pg *g)
+{
+    return g? g->user: 0;
+}
+
+
+void
+pg_set_user(Pg *g, void *user)
+{
+    if (g)
+        g->user = user;
+}
+
 
 Pg
 pg_init_canvas(const PgCanvasImpl *v, float width, float height)
@@ -57,6 +75,7 @@ pg_reset_state(Pg *g)
         .line_cap = PG_BUTT_CAP,
         .flatness = 1.0f,
         .fill_rule = PG_NONZERO_RULE,
+        .gamma = 1.8f,
         .clip_x = 0.0f,
         .clip_y = 0.0f,
         .clip_sx = g->sx,
@@ -469,6 +488,16 @@ pg_set_flatness(Pg *g, float flatness)
 
 
 void
+pg_set_gamma(Pg *g, float gamma)
+{
+    if (!g)
+        return;
+
+    g->s.gamma = gamma;
+}
+
+
+void
 pg_set_fill_rule(Pg *g, PgFillRule fill_rule)
 {
     if (!g)
@@ -519,6 +548,18 @@ pg_set_underline(Pg *g, bool underline)
         return;
 
     g->s.underline = underline;
+}
+
+
+void
+pg_reset_clip(Pg *g)
+{
+    if (!g)
+        return;
+    g->s.clip_x = 0.0f;
+    g->s.clip_y = 0.0f;
+    g->s.clip_sx = g->sx;
+    g->s.clip_sy = g->sy;
 }
 
 
@@ -581,6 +622,15 @@ pg_get_flatness(Pg *g)
     if (!g)
         return 0;
     return g->s.flatness;
+}
+
+
+float
+pg_get_gamma(Pg *g)
+{
+    if (!g)
+        return 0;
+    return g->s.gamma;
 }
 
 

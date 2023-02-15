@@ -43,6 +43,7 @@ static const char *FRAGMENT_SHADER[] = {
     "uniform float   stops[8];",
     "uniform vec4    colors[8];",
     "uniform int     nstops;",
+    "uniform float   igamma;",
     "",
     "vec4 lchtolab(vec4 lch) {",
     "    float l = lch.x;",
@@ -70,9 +71,9 @@ static const char *FRAGMENT_SHADER[] = {
     "    float r = rgb.x;",
     "    float g = rgb.y;",
     "    float b = rgb.z;",
-    "    return vec4(r < 0.0031308? 12.92 * r: 1.055 * pow(r, 1.0 / 2.40) - 0.055,",
-    "                g < 0.0031308? 12.92 * g: 1.055 * pow(g, 1.0 / 2.40) - 0.055,",
-    "                b < 0.0031308? 12.92 * b: 1.055 * pow(b, 1.0 / 2.40) - 0.055,",
+    "    return vec4(r < 0.0031308? 12.92 * r: 1.055 * pow(r, igamma) - 0.055,",
+    "                g < 0.0031308? 12.92 * g: 1.055 * pow(g, igamma) - 0.055,",
+    "                b < 0.0031308? 12.92 * b: 1.055 * pow(b, igamma) - 0.055,",
     "                rgb.w);",
     "}",
     "vec4 convert(vec4 color) {",
@@ -209,6 +210,7 @@ set_coords(Pg *g)
                     0.0f, -2.0f / g->sy, 0.0f,
                     -1.0f, 1.0f, 0.0f };
     glUniformMatrix3fv(gl->ctmloc, 1, false, ctm);
+    glUniform1f(glGetUniformLocation(gl->prog, "igamma"), 1.0f / g->s.gamma);
 }
 
 
@@ -262,7 +264,7 @@ _clear(Pg *g)
     if (paint->nstops == 1) {
         set_coords(g);
 
-        PgColor c = pg_convert_color_to_srgb(paint->cspace, paint->colors[0]);
+        PgColor c = pg_convert_color_to_srgb(paint->cspace, paint->colors[0], g->s.gamma);
         glClearColor(c.x, c.y, c.z, c.a);
         glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     }

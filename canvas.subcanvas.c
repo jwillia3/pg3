@@ -14,7 +14,6 @@ call(Pg *g, void subroutine(Pg *g))
     PgPath          *old_path = parent->path;
 
     if (pg_save(g)) {
-
         parent->path = sub->_.path;
         parent->s = sub->_.s;
         pg_translate(parent, sub->x, sub->y);
@@ -103,8 +102,8 @@ pg_subcanvas(Pg *parent, float x, float y, float sx, float sy)
     return new(PgSubcanvas,
         pg_init_canvas(&methods, sx, sy),
         .parent = parent,
-        .x = x,
-        .y = y,
-        .sx = fminf(parent->sx - x, sx),
-        .sy = fminf(parent->sy - y, sy));
+        .x = truncf(x),
+        .y = truncf(y),
+        .sx = ceilf(fminf(parent->sx - x, sx)),
+        .sy = ceilf(fminf(parent->sy - y, sy)));
 }

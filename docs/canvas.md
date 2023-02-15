@@ -11,6 +11,7 @@ Canvas
         PgLineCap           line_cap;
         float               flatness;
         PgFillRule          fill_rule;
+        float               gamma;
         float               clip_x;
         float               clip_y;
         float               clip_sx;

@@ -74,7 +74,11 @@ State
       PgLineCap           line_cap;
       float               flatness;
       PgFillRule          fill_rule;
-      PgRect              clip;
+      float               gamma;
+      float               clip_x;
+      float               clip_y;
+      float               clip_sx;
+      float               clip_sy;
       PgTextPos           text_pos;
       bool                underline;
   };
@@ -130,6 +134,11 @@ Reference unless otherwise noted.
   - `PG_BUTT_CAP` ends the line on the given coordinate
   - `PG_SQUARE_CAP` extends the line according to the line width
   - Default: `PG_BUTT_CAP`
+
+- Gamma
+  - The gamma correction constant
+  - Normal values are `1.8f` or `2.2f`
+  - Default: `1.8f`
 
 - Stroke
   - Paint used to stroke a path
