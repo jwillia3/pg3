@@ -9,6 +9,9 @@ static
 void
 call(Pg *g, void subroutine(Pg *g))
 {
+    if (!g || !subroutine)
+        return;
+
     PgSubcanvas     *sub = (PgSubcanvas*) g;
     Pg              *parent = sub->parent;
     PgPath          *old_path = parent->path;
@@ -23,8 +26,7 @@ call(Pg *g, void subroutine(Pg *g))
             fminf(g->s.clip_sx, sub->sx),
             fminf(g->s.clip_sy, sub->sy));
 
-        if (subroutine)
-            subroutine(parent);
+        subroutine(parent);
 
         parent->path = old_path;
 
@@ -98,6 +100,9 @@ pg_subcanvas(Pg *parent, float x, float y, float sx, float sy)
 {
     if (!parent)
         return 0;
+
+    if (sx < 0) sx = 0.0f;
+    if (sy < 0) sy = 0.0f;
 
     return new(PgSubcanvas,
         pg_init_canvas(&methods, sx, sy),

@@ -11,13 +11,14 @@
 
 #define MAX_QUEUE   64
 
-static PgEvent      queue[MAX_QUEUE];
-static int          queue_count;
-static int          queue_index;
-static volatile bool is_waiting;
-static pthread_mutex_t queue_mtx;
-static bool         initialized;
-static char         **dropped_files;
+static volatile PgEvent     queue[MAX_QUEUE];
+static volatile int         queue_count;
+static volatile int         queue_index;
+static volatile bool        is_waiting;
+static volatile bool        pending_redraws;
+static pthread_mutex_t      queue_mtx;
+static bool                 initialized;
+static char                 **dropped_files;
 
 static int translate_key(int key);
 static int translate_mods(int mods);
@@ -30,15 +31,29 @@ pg_enqueue(PgEvent evt)
 
     pthread_mutex_lock(&queue_mtx);
 
+    if (evt.type == PG_REDRAW_EVENT && pending_redraws)
+        /*
+            pgb_dirty() calls can cause multiple events to
+            be put on the queue. We only need one.
+         */
+        goto skip;
+
     if (queue_count < MAX_QUEUE) {
         queue[queue_index] = evt;
         queue_index = (queue_index + 1) % MAX_QUEUE;
         queue_count++;
 
+        if (evt.type == PG_REDRAW_EVENT)
+            pending_redraws = true;
+
         if (is_waiting)
             glfwPostEmptyEvent();
     } else
         ok = false;
+
+
+    skip:
+
 
     pthread_mutex_unlock(&queue_mtx);
     return ok;
@@ -57,9 +72,14 @@ dequeue(PgEvent *evt)
 
     if (queue_count) {
         int i = queue_index - queue_count;
-        if (i < 0) i += MAX_QUEUE;
+        if (i < 0)
+            i += MAX_QUEUE;
+
         *evt = queue[i];
         queue_count--;
+
+        if (evt->type == PG_REDRAW_EVENT)
+            pending_redraws = false;
     } else
         ok = false;
 
@@ -72,24 +92,24 @@ void
 resized(GLFWwindow *win, int width, int height)
 {
     Pg *g = glfwGetWindowUserPointer(win);
+    glfwMakeContextCurrent(win);
     pg_resize(g, width, height);
-    pg_enqueue((PgEvent) { PG_RESIZE_EVENT, g, .resized={width, height} });
+    pg_enqueue_resized(g, width, height);
 }
 
 static
 void
 update(GLFWwindow *win)
 {
-    Pg *g = glfwGetWindowUserPointer(win);
-    pg_enqueue((PgEvent) { PG_REDRAW_EVENT, g, {0} });
+    glfwMakeContextCurrent(win);
+    pg_enqueue_redraw(glfwGetWindowUserPointer(win));
 }
 
 static
 void
 closed(GLFWwindow *win)
 {
-    Pg *g = glfwGetWindowUserPointer(win);
-    pg_enqueue((PgEvent) { PG_CLOSE_EVENT, g, {0} });
+    pg_enqueue_closed(glfwGetWindowUserPointer(win));
 }
 
 static
@@ -98,27 +118,19 @@ key_pressed(GLFWwindow *win, int key, int scancode, int action, int mods)
 {
     (void) scancode;
     Pg *g = glfwGetWindowUserPointer(win);
-    int type = action == GLFW_RELEASE? PG_KEY_UP_EVENT: PG_KEY_DOWN_EVENT;
-    pg_enqueue((PgEvent) {
-        type,
-        g,
-        .key = {
-            key = translate_key(key),
-            mods = translate_mods(mods),
-        }
-    });
+    key = translate_key(key);
+    mods = translate_mods(mods);
+    if (action == GLFW_RELEASE)
+        pg_enqueue_key_up(g, key, mods);
+    else
+        pg_enqueue_key_down(g, key, mods);
 }
 
 static
 void
 char_pressed(GLFWwindow *win, unsigned codepoint)
 {
-    Pg *g = glfwGetWindowUserPointer(win);
-    pg_enqueue((PgEvent) {
-        PG_CHAR_EVENT,
-        g,
-        .codepoint = codepoint,
-    });
+    pg_enqueue_char(glfwGetWindowUserPointer(win), codepoint);
 }
 
 static
@@ -126,19 +138,13 @@ void
 button_pressed(GLFWwindow *win, int button, int action, int mods)
 {
     Pg *g = glfwGetWindowUserPointer(win);
-    int type = action == GLFW_RELEASE? PG_MOUSE_UP_EVENT: PG_MOUSE_DOWN_EVENT;
     double x, y;
     glfwGetCursorPos(win, &x, &y);
-
-    pg_enqueue((PgEvent) {
-        type,
-        g,
-        .mouse = {
-            .pos = PgPt(x, y),
-            .button = button,
-            .mods = translate_mods(mods),
-        }
-    });
+    mods = translate_mods(mods);
+    if (action == GLFW_RELEASE)
+        pg_enqueue_mouse_up(g, x, y, button, mods);
+    else
+        pg_enqueue_mouse_down(g, x, y, button, mods);
 }
 
 static
@@ -158,43 +164,25 @@ files_dropped(GLFWwindow *win, int npaths, const char **paths)
         dropped_files[i] = strdup(paths[i]);
     dropped_files[npaths] = 0;
 
-    pg_enqueue((PgEvent) {
-        PG_FILES_DROPPED_EVENT,
-        g,
-        .dropped = {
-            .npaths = npaths,
-            .paths = (const char**) dropped_files,
-        }
-    });
+    pg_enqueue_files_dropped(g, npaths, (const char**) dropped_files);
 }
 
 static
 void
 mouse_moved(GLFWwindow *win, double x, double y)
 {
-    Pg *g = glfwGetWindowUserPointer(win);
-    pg_enqueue((PgEvent) {
-        PG_MOUSE_MOVE_EVENT,
-        g,
-        .mouse = {
-            .pos = PgPt(x, y)
-        }
-    });
+    pg_enqueue_mouse_move(glfwGetWindowUserPointer(win), x, y, get_mods(win));
 }
 
 static
 void
-scroll(GLFWwindow *win, double x, double y)
+scroll(GLFWwindow *win, double dx, double dy)
 {
     Pg *g = glfwGetWindowUserPointer(win);
-    pg_enqueue((PgEvent) {
-        PG_MOUSE_SCROLL_EVENT,
-        g,
-        .mouse = {
-            .scroll = PgPt(x, y),
-            .mods = get_mods(win),
-        }
-    });
+    double x, y;
+    glfwGetCursorPos(win, &x, &y);
+    int mods = get_mods(win);
+    pg_enqueue_scrolled(g, x, y, dx, dy, mods);
 }
 
 bool
@@ -224,6 +212,15 @@ pg_dpi(void)
     return PgPt(96.0f * x, 96.0f * y);
 }
 
+
+void
+pg_set_window_title(Pg *g, const char *title)
+{
+    if (!g || !pg_get_sys(g) || !title) return;
+    glfwSetWindowTitle(pg_get_sys(g), title);
+}
+
+
 Pg*
 pg_window(unsigned width, unsigned height, const char *title)
 {
@@ -247,7 +244,8 @@ pg_window(unsigned width, unsigned height, const char *title)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     Pg *g = pg_opengl((float) width, (float) height);
-    g->sys = win;
+    pg_set_sys(g, win);
+    glfwSetWindowUserPointer(win, g);
     return g;
 }
 
@@ -433,8 +431,7 @@ get_mods(GLFWwindow *win)
     bool sup = glfwGetKey(win, GLFW_KEY_LEFT_SUPER) || glfwGetKey(win, GLFW_KEY_RIGHT_SUPER);
     bool caps = glfwGetKey(win, GLFW_KEY_CAPS_LOCK);
     bool num = glfwGetKey(win, GLFW_KEY_NUM_LOCK);
-    return
-           (shift? PG_MOD_SHIFT: 0) +
+    return (shift? PG_MOD_SHIFT: 0) +
            (ctrl? PG_MOD_CTRL: 0) +
            (alt? PG_MOD_WIN: 0) +
            (sup? PG_MOD_WIN: 0) +
@@ -442,7 +439,7 @@ get_mods(GLFWwindow *win)
            (num? PG_MOD_NUM: 0);
 }
 
-const char*
+char*
 pg_get_clipboard(void)
 {
     const char *original = glfwGetClipboardString(0);

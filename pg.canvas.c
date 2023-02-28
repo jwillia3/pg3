@@ -6,14 +6,14 @@
 
 static const PgPaint black_paint = {
     .type = PG_SOLID_PAINT,
-    .cspace = PG_SRGB,
+    .cspace = PG_LINEAR_RGB,
     .colors[0] = { 0.0f, 0.0f, 0.0f, 1.0f },
     .nstops = 1,
 };
 
 static const PgPaint white_paint = {
     .type = PG_SOLID_PAINT,
-    .cspace = PG_SRGB,
+    .cspace = PG_LINEAR_RGB,
     .colors[0] = { 1.0f, 1.0f, 1.0f, 1.0f },
     .nstops = 1,
 };
@@ -27,20 +27,6 @@ pg_size(Pg *g)
     return PgPt(g->sx, g->sy);
 }
 
-
-void*
-pg_user(Pg *g)
-{
-    return g? g->user: 0;
-}
-
-
-void
-pg_set_user(Pg *g, void *user)
-{
-    if (g)
-        g->user = user;
-}
 
 
 Pg

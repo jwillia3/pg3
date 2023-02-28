@@ -8,18 +8,13 @@ OPTIONS=-DPLATFORM=$(PLATFORM) \
 
 CFLAGS = -Wall -Wextra -fpic -shared -std=c11 -D_XOPEN_SOURCE=700 $(OPTIONS) -O2 -g -I.
 
-SRC = pg.c pg.*.c font.*.c canvas.*.c gui.*.c platform.*.c
-
-# .python: libpg3.so
-# 	python3 -Bu demo.py
-
-.demo:	libpg3.so
-	$(CC) -I. -L. -odemo demo.c `pkg-config --with-path=. --cflags --libs libpg3`
-	LD_LIBRARY_PATH=.:$(LD_LIBRARY_PATH) ./demo
-
-libpg3.so: Makefile $(SRC) *.h
-	$(CC) $(CFLAGS) -olibpg3.so `pkg-config --with-path=. --cflags gl glew glfw3 fontconfig` \
-		$(SRC) `pkg-config --libs gl glew glfw3 fontconfig`
+libpg3.so: Makefile *.c *.h
+	$(CC) \
+		$(CFLAGS) \
+		`pkg-config --with-path=. --cflags gl glew glfw3 fontconfig` \
+		-olibpg3.so \
+		*.c \
+		`pkg-config --libs gl glew glfw3 fontconfig`
 
 clean:
 	rm libpg3.so demo

@@ -382,7 +382,7 @@ static const char *panose_5[10][17] = {
             "Normal", "Narrow", "Very Narrow", "", "", "", "", "", "" },
 };
 
-const char *(*panose[10])[17] = {
+static const char *(*panose[10])[17] = {
     [0] = panose_none,
     [1] = panose_none,
     [2] = panose_2,

@@ -9,6 +9,7 @@ typedef struct PgState      PgState;        // State of canvas
 typedef struct PgSubcanvas  PgSubcanvas;    // Limited section of another canvas
 typedef struct PgGroup      PgGroup;        // Control group
 typedef struct PgEvent      PgEvent;        // A user interaction event.
+typedef struct Pgb          Pgb;            // UI Layout Box
 typedef struct PgColor      PgColor;        // Colour
 typedef struct PgPt         PgPt;           // Point
 typedef struct PgTM         PgTM;           // Transform Matrix (2D)
@@ -37,7 +38,9 @@ enum PgPaintType {
 };
 
 enum PgColorSpace {
-    PG_SRGB,
+    PG_LINEAR_RGB,
+    PG_OKLCH,
+    PG_OKLAB,
     PG_LCHAB,
     PG_LAB,
     PG_XYZ,
@@ -319,8 +322,9 @@ struct PgState {
 
 struct Pg {
     const PgCanvasImpl  *v;
-    void                *user;
+    Pgb                 *box;
     void                *sys;
+    void                *user;
     float               sx;
     float               sy;
     PgPath              *path;
@@ -338,6 +342,7 @@ struct PgSubcanvas {
     float   sy;
 };
 
+
 struct PgEvent {
     PgEventType type;
     Pg          *g;
@@ -347,8 +352,8 @@ struct PgEvent {
         void        *user;
 
         struct {
-            int     width;
-            int     height;
+            int     sx;
+            int     sy;
         } resized;
 
         struct {
@@ -357,8 +362,10 @@ struct PgEvent {
         } key;
 
         struct {
-            PgPt    pos;
-            PgPt    scroll;
+            float   x;
+            float   y;
+            float   dx;
+            float   dy;
             int     button;
             int     mods;
         } mouse;
@@ -430,8 +437,6 @@ void pg_shutdown(void);
 Pg *pg_opengl(float width, float height);
 Pg *pg_subcanvas(Pg *parent, float x, float y, float sx, float sy);
 void pg_free(Pg *g);
-void *pg_user(Pg *g);
-void pg_set_user(Pg *g, void *user);
 
 
 void pg_resize(Pg *g, float width, float height);
@@ -501,9 +506,32 @@ bool pg_init_gui(void);
 PgPt pg_dpi(void);
 void pg_update(Pg *g);
 Pg *pg_window(unsigned width, unsigned height, const char *title);
+void pg_set_window_title(Pg *g, const char *title);
+
+Pgb *pg_get_box(Pg *g);
+void pg_set_box(Pg *g, Pgb *box);
+void *pg_get_user(Pg *g);
+void pg_set_user(Pg *g, void *ptr);
+void *pg_get_sys(Pg *g);
+void pg_set_sys(Pg *g, void *ptr);
+
+
+// Events.
 bool pg_wait(PgEvent *evt);
 bool pg_enqueue(PgEvent evt);
-const char *pg_get_clipboard(void);
+bool pg_enqueue_redraw(Pg *g);
+bool pg_enqueue_resized(Pg *g, int width, int height);
+bool pg_enqueue_closed(Pg *g);
+bool pg_enqueue_key_down(Pg *g, int key, PgMods mods);
+bool pg_enqueue_key_up(Pg *g, int key, PgMods mods);
+bool pg_enqueue_char(Pg *g, unsigned codepoint);
+bool pg_enqueue_mouse_down(Pg *g, int x, int y, int button, PgMods mods);
+bool pg_enqueue_mouse_up(Pg *g, int x, int y, int button, PgMods mods);
+bool pg_enqueue_files_dropped(Pg *g, int npaths, const char **paths);
+bool pg_enqueue_mouse_move(Pg *g, int x, int y, PgMods mods);
+bool pg_enqueue_scrolled(Pg *g, float x, float y, float dx, float dy, PgMods mods);
+
+char *pg_get_clipboard(void);
 void pg_set_clipboard(const char *text);
 
 
@@ -535,11 +563,16 @@ PgPaint pg_linear(PgColorSpace cspace, float ax, float ay, float bx, float by);
 PgPaint pg_solid(PgColorSpace cspace, float u, float v, float w, float a);
 void pg_add_stop(PgPaint *paint, float t, float u, float v, float w, float a);
 
+const PgPaint *pg_web_color_paint(const char *name);
+PgColor pg_web_color(const char *name);
+
+PgColor pg_oklch_to_oklab(PgColor oklch);
+PgColor pg_oklab_to_rgb(PgColor oklab);
 PgColor pg_lch_to_lab(PgColor lch);
 PgColor pg_lab_to_xyz(PgColor lab);
 PgColor pg_xyz_to_rgb(PgColor xyz);
 PgColor pg_gamma_correct(PgColor rgb, float gamma);
-PgColor pg_convert_color_to_srgb(PgColorSpace cspace, PgColor color, float gamma);
+PgColor pg_convert_color_to_rgb(PgColorSpace cspace, PgColor color, float gamma);
 
 
 

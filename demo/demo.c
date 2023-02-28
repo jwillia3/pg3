@@ -16,6 +16,8 @@ void chicago_demo(void);
 void fontmgr_init(void);
 void fontmgr_demo(void);
 void fontmgr_key(int key, int mod);
+void oklab_demo(void);
+void oklab_key(int key, int mod);
 
 struct demo {
     char *desc;
@@ -39,6 +41,11 @@ demos[] = {
         .init=fontmgr_init,
         .draw=fontmgr_demo,
         .key=fontmgr_key,
+    },
+    {
+        .desc="Oklab Colour Space Comparison",
+        .draw=oklab_demo,
+        .key=oklab_key,
     }
 };
 #define NDEMOS (sizeof demos / sizeof *demos)
@@ -324,6 +331,49 @@ fontmgr_key(int key, int mod)
     pg_free_font(fontmgr.the_font);
     fontmgr.the_font = 0;
     redraw();
+}
+
+struct {
+    float lightness;
+    float chroma;
+    float hue;
+} oklab = {
+    .lightness = .5,
+    .chroma = .1,
+    .hue = 0.,
+};
+
+void
+oklab_key(int key, int mod)
+{
+    if (key == 'L')
+        oklab.lightness += .05 * (mod & PG_MOD_SHIFT ? -1: 1);
+    else if (key == 'C')
+        oklab.chroma += .01 * (mod & PG_MOD_SHIFT ? -1: 1);
+    else if (key == 'H')
+        oklab.hue += .05 * (mod & PG_MOD_SHIFT ? -1: 1);
+    redraw();
+    return;
+}
+
+void
+oklab_demo(void)
+{
+    PgPt    sz = pg_size(g);
+
+    PgPaint colour = pg_linear(PG_OKLCH, 0., 0., sz.x, 0.);
+    pg_add_stop(&colour, 0., oklab.lightness, oklab.chroma, 0., 1.);
+    pg_add_stop(&colour, 1., oklab.lightness, oklab.chroma, 1., 1.);
+    pg_set_fill(g, &colour);
+    pg_rectangle(g, 0., 0., sz.x, sz.y);
+    pg_fill(g);
+
+    pg_set_fill(g, pg_web_color_paint("black"));
+    pg_printf(g, ui_font, 0, 0, "LCH: (%g, %g, x)",
+              oklab.lightness, oklab.chroma);
+    pg_fill(g);
+
+    pg_update(g);
 }
 
 void

@@ -5,6 +5,8 @@
 #define new(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
 
 
+#define PAD 5.0f
+
 
 /*
     Platform Dependent.
