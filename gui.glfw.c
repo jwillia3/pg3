@@ -207,6 +207,9 @@ pg_init_gui(void)
 PgPt
 pg_dpi(void)
 {
+    if (!glfwInit())
+        return PgPt(96.0f, 96.0f);
+
     float x, y;
     glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &x, &y);
     return PgPt(96.0f * x, 96.0f * y);
@@ -222,10 +225,32 @@ pg_set_window_title(Pg *g, const char *title)
 
 
 Pg*
-pg_window(unsigned width, unsigned height, const char *title)
+pg_window(float width, float height, const char *title)
 {
+    if (width < 0.0f || height < 0.0f)
+        return 0;
+
     if (!pg_init_gui())
         return 0;
+
+    if (width <= 1.0f || height <= 1.0f) {
+        if (width == 0.0f)
+            width = 0.5f;
+
+        if (height == 0.0f)
+            height = 0.5f;
+
+        GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+        int         msx, msy;
+
+        glfwGetMonitorWorkarea(monitor, 0, 0, &msx, &msy);
+
+        if (width <= 1.0f)
+            width = msx * width;
+
+        if (height <= 1.0f)
+            height = msy * height;
+    }
 
     GLFWwindow *win = glfwCreateWindow(width, height, title, 0, 0);
     glfwMakeContextCurrent(win);

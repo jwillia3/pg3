@@ -505,7 +505,7 @@ bool pg_get_underline(Pg *g);
 bool pg_init_gui(void);
 PgPt pg_dpi(void);
 void pg_update(Pg *g);
-Pg *pg_window(unsigned width, unsigned height, const char *title);
+Pg *pg_window(float width, float height, const char *title);
 void pg_set_window_title(Pg *g, const char *title);
 
 Pgb *pg_get_box(Pg *g);
@@ -737,9 +737,10 @@ pg_write_utf8(char *outp, char *limitp, uint32_t c)
     uint8_t *out = (uint8_t*) outp;
     uint8_t *limit = (uint8_t*) limitp;
 
-    if (c < 0x80)
-        *out++ = (uint8_t) c;
-
+    if (c < 0x80) {
+        if (out < limit)
+            *out++ = (uint8_t) c;
+    }
     else if (c < 0x0800) {
         if (out + 2 < limit) {
             *out++ = (uint8_t) (0xc0 + (c >> 6));

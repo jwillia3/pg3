@@ -109,7 +109,7 @@ main(int argc, char **argv)
     (void) argv;
 
     setvbuf(stdout, 0, _IONBF, 0);
-    Pgb *root = pgb_root(pg_window(1280, 720, "Smörgåsbord"));
+    Pgb *root = pgb_root(pg_window(0, 0, "Smörgåsbord"));
 
     // buffet(root, 0);
     buffet(root, PGB_FILL);

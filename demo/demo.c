@@ -48,7 +48,7 @@ demos[] = {
         .key=oklab_key,
     }
 };
-#define NDEMOS (sizeof demos / sizeof *demos)
+#define NDEMOS (int) (sizeof demos / sizeof *demos)
 
 char lorem_ipsum[] =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse"
@@ -139,11 +139,14 @@ intro_demo(void)
         pg_printf(g, ui_font, 0, y, "%d: %s", i + 1, demos[i].desc);
         pg_fill(g);
     }
+
+    pg_update(g);
 }
 
 void
 intro_key(int key, int mod)
 {
+    (void) mod;
     if (key >= '1' && key <= '9') {
         if (key - '1' < NDEMOS)
             demo = key - '1';
@@ -167,14 +170,16 @@ chicago_demo(void)
     star(PgPt(600, 0), 50, 6);
     pg_fill_stroke(g);
     pg_restore(g);
+    pg_update(g);
 }
 
 struct {
-    int         sel;
+    unsigned    sel;
     PgFamily    *families;
-    int         nfamilies;
-    int         weight;
+    unsigned    nfamilies;
+    unsigned    weight;
     bool        italic;
+    bool        only_fixed;
     PgFont      *the_font;
     float       line_height;
     float       size;
@@ -190,6 +195,13 @@ fontmgr_init(void)
     fontmgr.example = lorem_ipsum;
 }
 
+bool
+is_fixed(PgFamily *family) {
+    for (PgFace *f = family->faces; f->family; f++)
+        if (f->is_fixed) return true;
+    return false;
+}
+
 void
 fontmgr_demo(void)
 {
@@ -203,8 +215,8 @@ fontmgr_demo(void)
     float       dpi = pg_dpi().y;
     float       screen_height = pg_size(g).y;
     float       line_height = pg_font_height(ui_font) * 1.25;
-    int         fit = floor(screen_height / line_height) - 1;
-    int         top = fontmgr.sel >= fit? fontmgr.sel - fit: 0;
+    unsigned    fit = floor(screen_height / line_height) - 1;
+    unsigned    top = fontmgr.sel >= fit? fontmgr.sel - fit: 0;
     float       max_x = 0;
     float       y = 0;
 
@@ -213,9 +225,17 @@ fontmgr_demo(void)
     /*
         Recalculate the font list.
     */
-    fontmgr.families = pg_list_fonts();
+    PgFamily *new_set = calloc(pg_get_family_count() + 1, sizeof *new_set);
+
     fontmgr.nfamilies = 0;
-    while (fontmgr.families[fontmgr.nfamilies].name) fontmgr.nfamilies++;
+    for (PgFamily *f = pg_list_fonts(), *o = new_set; f->name; f++)
+        if (!fontmgr.only_fixed || is_fixed(f))
+            *o++ = *f,
+            fontmgr.nfamilies++;
+
+    free(fontmgr.families);
+    fontmgr.families = new_set;
+
 
     /*
         Remake the font if its changed since last time.
@@ -226,9 +246,17 @@ fontmgr_demo(void)
         pg_scale_font(fontmgr.the_font, fontmgr.size * dpi / 72.0, 0.0);
     }
 
-    for (int i = top; i < fontmgr.nfamilies && y < screen_height; i++) {
-        float x = pg_printf(g, ui_font, 0, y, "%s", fontmgr.families[i].name);
-        max_x = fmaxf(max_x, x);
+    for (unsigned i = top; i < fontmgr.nfamilies && y < screen_height; i++) {
+
+        bool is_fixed = false;
+        for (PgFace *face = fontmgr.families[i].faces;
+             !is_fixed && face->family;
+             face++)
+        {
+            is_fixed |= face->is_fixed;
+        }
+
+        pg_printf(g, ui_font, 0, y, "%s", fontmgr.families[i].name);
 
         if (i == fontmgr.sel) {
             pg_set_fill(g, &sel_fg);
@@ -239,6 +267,9 @@ fontmgr_demo(void)
 
         y += line_height;
     }
+
+    for (unsigned i = 0; i < fontmgr.nfamilies; i++)
+        max_x = fmaxf(max_x, pg_measure_string(ui_font, fontmgr.families[i].name));
     max_x += 8;
 
     PgFamily    fam = fontmgr.families[fontmgr.sel];
@@ -262,6 +293,9 @@ fontmgr_demo(void)
     pg_fill(g);
     y += line_height;
     pg_printf(g, ui_font, x, y, "S: Size: %g", fontmgr.size);
+    pg_fill(g);
+    y += line_height;
+    pg_printf(g, ui_font, x, y, "F: Spacing: %s", fontmgr.only_fixed? "Fixed-Pitched": "Any");
     pg_fill(g);
     y += line_height;
     y += line_height;
@@ -304,8 +338,13 @@ fontmgr_key(int key, int mod)
         goto changed_font;
     }
     else if (key == PG_KEY_UP) {
-        if (--fontmgr.sel < 0)
-            fontmgr.sel = 0;
+        if (fontmgr.sel != 0)
+            fontmgr.sel = fontmgr.sel - 1;
+        goto changed_font;
+    }
+    else if (key == 'F') {
+        fontmgr.only_fixed ^= 1;
+        fontmgr.sel = 0;
         goto changed_font;
     }
     else if (key == 'I') {
@@ -385,29 +424,27 @@ redraw(void)
     pg_clear(g);
 
     demos[demo % NDEMOS].draw();
-    pg_update(g);
 }
 
 int main(int argc, char **argv) {
+    (void) argc, (void) argv;
+
     setvbuf(stdout, 0, _IONBF, 0);
 
     for (int i = 0; i < NDEMOS; i++)
         if (demos[i].init) demos[i].init();
 
-    g = pg_window(800, 800, "Demo");
+    g = pg_window(0, 0, "Demo");
 
-    ui_font = pg_find_font("system-ui, sans-serif, any", 500, false);
-    pg_scale_font(ui_font, 12.0 * pg_dpi().x / 72.0, 0.0);
+    const char *font_family = "system-ui, sans-serif, any";
+    float font_pts = 12.0;
+    ui_font = pg_find_font(font_family, 500, false);
+    pg_scale_font(ui_font, font_pts * pg_dpi().x / 72.0, 0.0);
 
     for (PgEvent e; pg_wait(&e); )
         switch (e.type) {
 
         case PG_REDRAW_EVENT:
-            redraw();
-            break;
-
-        case PG_RESIZE_EVENT:
-            pg_resize(g, e.resized.width, e.resized.height);
             redraw();
             break;
 

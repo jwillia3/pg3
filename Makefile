@@ -20,11 +20,12 @@ clean:
 	rm libpg3.so demo
 
 install:
-	install pg3.h $(DESTDIR)include/
+	install pg3.h pgbox.h $(DESTDIR)include/
 	install libpg3.so $(DESTDIR)lib/
 	install libpg3.pc `pkg-config --variable pc_path pkg-config | cut -d: -f1`
 
 uninstall:
 	rm $(DESTDIR)include/pg3.h
+	rm $(DESTDIR)include/pgbox.h
 	rm $(DESTDIR)lib/libpg3.so
 	rm `pkg-config --variable pc_path pkg-config | cut -d: -f1`/libpg3.pc
