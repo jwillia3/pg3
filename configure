@@ -1,0 +1,47 @@
+#!/bin/sh
+
+UNIX=1
+OPENGL=1
+FONTCONFIG=1
+XLIB=1
+
+prefix=/usr/local
+
+srcdir=$(realpath .)
+pkgconfigdir=$(pkg-config --variable pc_path pkg-config | cut -f1 -d:)
+
+INCLUDE=./include
+
+PKGS=
+
+case "$(uname)" in
+    FreeBSD)
+        prefix=/usr/local;;
+    Darwin)
+        prefix=/usr/local;;
+    Linux)
+        prefix=/usr;;
+esac
+
+if [ $OPENGL = 1 ]; then PKGS="$PKGS gl glew"; fi
+if [ $FONTCONFIG = 1 ]; then PKGS="$PKGS fontconfig"; fi
+if [ $XLIB = 1 ]; then PKGS="$PKGS x11 egl gl glew"; fi
+
+
+CFLAGS="-I$srcdir/include"
+if [ $UNIX = 1 ]; then CFLAGS="$CFLAGS -DUSE_UNIX"; fi
+if [ $OPENGL = 1 ]; then CFLAGS="$CFLAGS -DUSE_OPENGL"; fi
+if [ $FONTCONFIG = 1 ]; then CFLAGS="$CFLAGS -DUSE_FONTCONFIG"; fi
+if [ $XLIB = 1 ]; then CFLAGS="$CFLAGS -DUSE_XLIB"; fi
+
+sed <Makefile.in >Makefile "
+s|^prefix=.*|prefix=$prefix|
+s|^pkgconfigdir=.*|pkgconfigdir=$pkgconfigdir|
+s|^ALL_CFLAGS=.*\$|& $CFLAGS|
+s|^PKGS=.*|& $PKGS|
+"
+
+sed <pg3.pc.in >pg3.pc "
+s|^prefix=.*|prefix=$prefix|
+s|^Requires:.*|Requires:$PKGS|
+"

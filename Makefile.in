@@ -2,15 +2,15 @@ SHELL=/bin/sh
 .SUFFIXES:
 .SUFFIXES: .c .o
 
-prefix=/usr/local
-pkgconfigdir=/usr/local/libdata/pkgconfig
+prefix=
+pkgconfigdir=
 libdir=$(prefix)/lib
 includedir=$(prefix)/include
 
 CFLAGS=-g -O2
-ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration -I/usr/home/jlw/src/pg3/include -DUSE_UNIX -DUSE_OPENGL -DUSE_FONTCONFIG -DUSE_XLIB
+ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration
 
-PKGS=  gl glew fontconfig x11 egl gl glew
+PKGS=
 PKG_CFLAGS=`pkg-config --cflags $(PKGS)`
 PKG_LIBS=`pkg-config --libs $(PKGS)`
 LIBS=-lm

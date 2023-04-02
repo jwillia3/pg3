@@ -27,10 +27,6 @@ Backlog
 Optimisation
 ----------------------------------------------------------------
 
-  - Optimise transform matrix
-    - `pg_mul_tm()` should remove `0.0f * y.e`; its not a no-op
-    - `pg_translate_tm()` does not need to multiply
-
   - Find a tighter bound on number of vertexes in OpenGL flattening
 
   - Share flattened vertexes in OpenGL `_strokefill()`
@@ -59,8 +55,6 @@ Robustness / Security
 ----------------------------------------------------------------
   - Check float to integer conversion
     - `(unsigned) negativefloat` is implementation defined
-
-  - User can change the canvas state to values that may crash.
 
   - Values are cached such as the size of tables.
     If the underlying file changes, the results could cause exceptions.

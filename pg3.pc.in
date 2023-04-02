@@ -1,0 +1,12 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: pg3
+Description: The pg3 graphics library
+Version: 3.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lpg3 -lm
+Url: https://github.com/jwillia3/pg3
+Requires: glfw3 glew gl fontconfig
