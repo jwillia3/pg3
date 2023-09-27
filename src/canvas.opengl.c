@@ -687,6 +687,9 @@ pg_canvas_new_opengl(unsigned width, unsigned height)
 {
     glewInit();
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     GLuint  vsh = make_shader(GL_VERTEX_SHADER, VERTEX_SHADER);
     GLuint  fsh = make_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER);
     GLuint  prog = make_program(vsh, fsh);

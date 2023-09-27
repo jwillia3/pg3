@@ -19,4 +19,3 @@ struct PgPt {
 #include <pg-font.h>
 #include <pg-canvas.h>
 #include <pg-window.h>
-#include <pg-box.h>

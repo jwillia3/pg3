@@ -386,7 +386,7 @@ pg_font_find(const char *family_options, unsigned weight, bool italic)
 
 
 PgFont*
-pg_font_from_data(const uint8_t *data, size_t size, unsigned index)
+pg_font_from_data(const char *optional_path, const uint8_t *data, size_t size, unsigned index)
 {
     if (!data)
         return 0;
@@ -396,8 +396,11 @@ pg_font_from_data(const uint8_t *data, size_t size, unsigned index)
 
     PgFont *font;
 
-    if ((font = pg_font_from_data_otf(data, size, index)))
+    if ((font = pg_font_from_data_otf(data, size, index))) {
+        if (optional_path)
+            font->path = strdup(optional_path);
         return font;
+    }
 
     return 0;
 }
@@ -411,7 +414,7 @@ pg_font_from_file(const char *path, unsigned index)
 
     size_t  size = 0;
     void    *data = _pg_file_map(path, &size);
-    PgFont  *font = pg_font_from_data(data, size, index);
+    PgFont  *font = pg_font_from_data(path, data, size, index);
 
     if (!font) {
         _pg_file_unmap(data, size);
@@ -460,6 +463,7 @@ pg_font_free(PgFont *font)
     font->v->free(font);
     _pg_file_unmap((void*) font->data, font->size);
     free(font->prop_buf);
+    free((void*) font->path);
     free(font);
 }
 
@@ -533,6 +537,13 @@ pg_font_prop_string(PgFont *font, PgFontProp id)
         font->prop_buf = malloc(256);
 
     return font->v->string(font, id);
+}
+
+
+const char*
+pg_font_get_path(PgFont *font)
+{
+    return font? font->path: NULL;
 }
 
 

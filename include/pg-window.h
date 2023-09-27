@@ -57,11 +57,15 @@ struct PgWindowEventMouse {
 };
 
 union PgWindowEvent {
-    PgWindowEventAny     any;
-    PgWindowEventResized resized;
-    PgWindowEventKey     key;
-    PgWindowEventText    text;
-    PgWindowEventMouse   mouse;
+    struct {
+        PgWindow            *win;
+        PgWindowEventType   type;
+    };
+    PgWindowEventAny        any;
+    PgWindowEventResized    resized;
+    PgWindowEventKey        key;
+    PgWindowEventText       text;
+    PgWindowEventMouse      mouse;
 };
 
 

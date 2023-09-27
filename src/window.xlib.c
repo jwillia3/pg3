@@ -286,6 +286,9 @@ pg_window_event_wait(void)
         if (xev.xconfigure.width != sz.x || xev.xconfigure.height != sz.y) {
             window->width = xev.xconfigure.width;
             window->height = xev.xconfigure.height;
+            pg_canvas_set_size(window->g,
+                               xev.xconfigure.width,
+                               xev.xconfigure.height);
             e->resized = (PgWindowEventResized) {
                 window,
                 PG_WINDOW_EVENT_RESIZED,

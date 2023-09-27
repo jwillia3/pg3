@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pg.h>
+#include <pg-box.h>
 #include <pg-internal-box.h>
 
 

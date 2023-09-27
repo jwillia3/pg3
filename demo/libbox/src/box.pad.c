@@ -1,4 +1,5 @@
 #include <pg.h>
+#include <pg-box.h>
 #include <pg-internal-box.h>
 
 

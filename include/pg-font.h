@@ -96,7 +96,8 @@ PgPt        pg_font_get_em(PgFont *font);
 const char* pg_font_prop_string(PgFont *font, PgFontProp id);
 float       pg_font_prop_float(PgFont *font, PgFontProp id);
 int         pg_font_prop_int(PgFont *font, PgFontProp id);
+const char  *pg_font_get_path(PgFont *font);
 
-PgFont*     pg_font_from_data(const uint8_t *data, size_t size, unsigned index);
+PgFont*     pg_font_from_data(const char *path, const uint8_t *data, size_t size, unsigned index);
 PgFont*     pg_font_from_file(const char *path, unsigned index);
 PgFont*     pg_font_from_data_otf(const uint8_t *data, size_t size, unsigned index);

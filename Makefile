@@ -8,7 +8,7 @@ libdir=$(prefix)/lib
 includedir=$(prefix)/include
 
 CFLAGS=-g -O2
-ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration -I/usr/home/jlw/src/pg3/include -DUSE_UNIX -DUSE_OPENGL -DUSE_FONTCONFIG -DUSE_XLIB
+ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration -Iinclude -DUSE_UNIX -DUSE_OPENGL -DUSE_FONTCONFIG -DUSE_XLIB
 
 PKGS=  gl glew fontconfig x11 egl gl glew
 PKG_CFLAGS=`pkg-config --cflags $(PKGS)`
@@ -18,13 +18,13 @@ LIBS=-lm
 SRC!=echo src/*.c
 OBJS=$(SRC:.c=.o)
 
-.demo: libpg3.so demo/demo
-	LD_LIBRARY_PATH=. bin/demo
+all: libpg3.so .font-viewer .libbox-demo
 
-all: libpg3.so demo/demo
+.font-viewer:
+	cd demo/font-viewer && make ../../bin/font-viewer
 
-demo/demo: libpg3.so demo/demo.c
-	$(CC) $(CFLAGS) $(ALL_CFLAGS) -obin/demo -Iinclude -L. demo/demo.c -lm -lpg3
+.libbox-demo:
+	cd demo/libbox && make ../../bin/libbox-demo
 
 libpg3.so: $(OBJS)
 	$(CC) -fpic -shared -olibpg3.so $(CFLAGS) $(ALL_CFLAGS) $(OBJS) $(PKG_LIBS) $(LIBS)
@@ -37,14 +37,14 @@ clean:
 
 install: all
 	-mkdir -p $(DESTDIR)$(libdir)
-	-mkdir -p $(DESTDIR)$(includedir)
+	-mkdir -p $(DESTDIR)$(includedir)/pg
 	-mkdir -p $(DESTDIR)$(pkgconfigdir)
 
 	install libpg3.so $(DESTDIR)$(libdir)/
-	install include/pg3.h $(DESTDIR)$(includedir)/
+	install include/* $(DESTDIR)$(includedir)/pg/
 	install pg3.pc $(DESTDIR)$(pkgconfigdir)/
 
 uninstall:
 	-rm -f $(DESTDIR)$(libdir)/libpg3.so
-	-rm -f $(DESTDIR)$(includedir)/include/pg3.h
+	-rm -rf $(DESTDIR)$(includedir)/include/pg
 	-rm -f $(DESTDIR)$(pkgconfigdir)/pg3.pc

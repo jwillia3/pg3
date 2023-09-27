@@ -13,6 +13,7 @@ struct PgFont {
     float               ascender;
     float               descender;
     char                *prop_buf;
+    const char          *path;
 };
 
 struct PgFontFunc {
