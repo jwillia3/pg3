@@ -52,3 +52,14 @@ void            pg_paint_clear_stops(PgPaint *paint);
 
 PgPaint*        pg_paint_clone(const PgPaint *from);
 void            pg_paint_free(PgPaint *paint);
+
+
+PgPaintType     pg_paint_get_type(PgPaint *paint);
+PgColorSpace    pg_paint_get_colorspace(PgPaint *paint);
+unsigned        pg_paint_get_nstops(PgPaint *paint);
+PgColor         pg_paint_get_color(PgPaint *paint, unsigned n);
+float           pg_paint_get_stop(PgPaint *paint, unsigned n);
+PgPt            pg_paint_get_a(PgPaint *paint);
+PgPt            pg_paint_get_b(PgPaint *paint);
+float           pg_paint_get_ra(PgPaint *paint);
+float           pg_paint_get_rb(PgPaint *paint);

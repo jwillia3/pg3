@@ -39,7 +39,7 @@ call(Pg *g, void subroutine(Pg *g))
     subroutine(parent);
 
     parent->path = old_path;
-    g->s = old_state;
+    parent->s = old_state;
 }
 
 

@@ -319,7 +319,7 @@ pg_window_event_wait(void)
             unsigned    disqualifier = Mod1Mask | ControlMask | Mod3Mask |
                                        Mod4Mask | Mod5Mask;
 
-            if (~xev.xkey.state & disqualifier) {
+            if (!(xev.xkey.state & disqualifier)) {
                 char            buf[8] = { 0 };
                 int             nchars = XLookupString(&xev.xkey, buf, 8, NULL, 0);
 

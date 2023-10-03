@@ -18,6 +18,9 @@ LIBS=-lm
 SRC!=echo src/*.c
 OBJS=$(SRC:.c=.o)
 
+.test: libpg3.so
+	python3 -B demo.py
+
 all: libpg3.so .font-viewer .libbox-demo
 
 .font-viewer:

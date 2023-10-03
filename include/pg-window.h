@@ -75,9 +75,25 @@ void        pg_window_free(PgWindow *win);
 void        pg_window_close(PgWindow *win);
 
 PgPt        pg_window_get_dpi(PgWindow *win);
+float       pg_window_get_dpi_x(PgWindow *win);
+float       pg_window_get_dpi_y(PgWindow *win);
 Pg*         pg_window_get_canvas(PgWindow *win);
 PgPt        pg_window_get_size(PgWindow *win);
+float       pg_window_get_width(PgWindow *win);
+float       pg_window_get_height(PgWindow *win);
 void        pg_window_update(PgWindow *win);
 void        pg_window_queue_update(PgWindow *win);
 
 PgWindowEvent*  pg_window_event_wait(void);
+
+PgWindowEventType pg_window_event_get_type(PgWindowEvent *e);
+PgWindow*   pg_window_event_get_window(PgWindowEvent *e);
+const char* pg_window_event_get_key(PgWindowEvent *e);
+const char* pg_window_event_get_text(PgWindowEvent *e);
+PgPt        pg_window_event_get_mouse_pt(PgWindowEvent *e);
+float       pg_window_event_get_mouse_x(PgWindowEvent *e);
+float       pg_window_event_get_mouse_y(PgWindowEvent *e);
+float       pg_window_event_get_mouse_wheel(PgWindowEvent *e);
+const char* pg_window_event_get_mouse_button(PgWindowEvent *e);
+float       pg_window_event_get_resized_width(PgWindowEvent *e);
+float       pg_window_event_get_resized_height(PgWindowEvent *e);

@@ -251,6 +251,69 @@ pg_paint_free(PgPaint *paint)
 }
 
 
+PgPaintType
+pg_paint_get_type(PgPaint *paint)
+{
+    return paint? paint->type: 0;
+}
+
+
+PgColorSpace
+pg_paint_get_colorspace(PgPaint *paint)
+{
+    return paint? paint->cspace: 0;
+}
+
+
+unsigned
+pg_paint_get_nstops(PgPaint *paint)
+{
+    return paint? paint->nstops: 0;
+}
+
+
+PgColor
+pg_paint_get_color(PgPaint *paint, unsigned n)
+{
+    return paint && n < paint->nstops? paint->colors[n]: (PgColor){0.0f, 0.0f, 0.0f, 0.0f};
+}
+
+
+float
+pg_paint_get_stop(PgPaint *paint, unsigned n)
+{
+    return paint && n < paint->nstops? paint->stops[n]: 0.0f;
+}
+
+
+PgPt
+pg_paint_get_a(PgPaint *paint)
+{
+    return paint? paint->a: pgpt(0.0f, 0.0f);
+}
+
+
+PgPt
+pg_paint_get_b(PgPaint *paint)
+{
+    return paint? paint->b: pgpt(0.0f, 0.0f);
+}
+
+
+float
+pg_paint_get_ra(PgPaint *paint)
+{
+    return paint? paint->ra: 0.0f;
+}
+
+
+float
+pg_paint_get_rb(PgPaint *paint)
+{
+    return paint? paint->rb: 0.0f;
+}
+
+
 
 static
 int

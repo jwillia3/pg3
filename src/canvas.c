@@ -9,9 +9,21 @@
 PgPt
 pg_canvas_get_size(Pg *g)
 {
-    if (!g)
-        return pgpt(0, 0);
-    return pgpt(g->sx, g->sy);
+    return g? pgpt(g->sx, g->sy): pgpt(0.0f, 0.0f);
+}
+
+
+float
+pg_canvas_get_width(Pg *g)
+{
+    return g? g->sx: 0.0f;
+}
+
+
+float
+pg_canvas_get_height(Pg *g)
+{
+    return g? g->sy: 0.0f;
 }
 
 
@@ -490,7 +502,7 @@ pg_canvas_set_line_cap(Pg *g, PgLineCap line_cap)
 
 
 void
-pg_canvas_set_fill_flatness(Pg *g, float flatness)
+pg_canvas_set_flatness(Pg *g, float flatness)
 {
     if (!g)
         return;
@@ -551,7 +563,7 @@ pg_canvas_set_underline(Pg *g, bool underline)
 
 
 void
-pg_canvas_scissor(Pg *g)
+pg_canvas_scissor_reset(Pg *g)
 {
     if (!g)
         return;

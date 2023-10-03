@@ -49,7 +49,7 @@ _pg_fontconfig_substitute(const char *family)
     FcDefaultSubstitute(pat);
     if ((match = FcFontMatch(0, pat, &result))) {
         /*
-            Make sure we this match isn't just a guess from
+            Make sure this match isn't just a wild guess from
             fontconfig. fontconfig will never return no matches.
             If the first family name that comes up is the same
             as searching with no criteria, the match is baseless
@@ -62,7 +62,13 @@ _pg_fontconfig_substitute(const char *family)
         if (all) {
             FcConfigSubstitute(0, all, FcMatchPattern);
             FcDefaultSubstitute(all);
-            if ((bogus = FcFontMatch(0, all, &result))) {
+            bool is_generic_sans = !pg_stricmp(family, "sans-serif") ||
+                                   !pg_stricmp(family, "system-ui") ||
+                                   !pg_stricmp(family, "ui-sans-serif");
+
+            is_good_advise = is_generic_sans;
+
+            if (!is_generic_sans && (bogus = FcFontMatch(0, all, &result))) {
                 FcPatternGetString(match, FC_FAMILY, 0, &new_family);
                 FcPatternGetString(bogus, FC_FAMILY, 0, &bogus_family);
                 is_good_advise = strcmp((char*) new_family, (char*) bogus_family);

@@ -61,6 +61,8 @@ void        pg_canvas_close_path(Pg *g);
 void        pg_canvas_append_path(Pg *g, const PgPath *src);
 
 PgPt        pg_canvas_get_size(Pg *g);
+float       pg_canvas_get_width(Pg *g);
+float       pg_canvas_get_height(Pg *g);
 void        pg_canvas_set_size(Pg *g, float width, float height);
 
 bool        pg_canvas_state_restore(Pg *g);
@@ -78,12 +80,12 @@ void        pg_canvas_set_stroke(Pg *g, const PgPaint *paint);
 void        pg_canvas_set_clear(Pg *g, const PgPaint *paint);
 void        pg_canvas_set_line_width(Pg *g, float line_width);
 void        pg_canvas_set_line_cap(Pg *g, PgLineCap line_cap);
-void        pg_canvas_set_fill_flatness(Pg *g, float flatness);
+void        pg_canvas_set_flatness(Pg *g, float flatness);
 void        pg_canvas_set_gamma(Pg *g, float gamma);
 void        pg_canvas_set_fill_rule(Pg *g, PgFillRule fill_rule);
 void        pg_canvas_set_scissors(Pg *g, float x, float y, float sx, float sy);
 void        pg_canvas_set_underline(Pg *g, bool underline);
-void        pg_canvas_scissor(Pg *g);
+void        pg_canvas_scissor_reset(Pg *g);
 
 PgTM            pg_canvas_get_mat(Pg *g);
 const PgPaint*  pg_canvas_get_fill(Pg *g);
