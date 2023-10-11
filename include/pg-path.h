@@ -34,6 +34,6 @@ void        pg_path_rmove(PgPath *path, float x, float y);
 void        pg_path_rcurve3(PgPath *path, float bx, float by, float cx, float cy);
 void        pg_path_rcurve4(PgPath *path, float bx, float by, float cx, float cy, float dx, float dy);
 void        pg_path_rectangle(PgPath *path, float x, float y, float sx, float sy);
-void        pg_path_rounded(PgPath *path, float x, float y, float sx, float sy, float rx, float ry);
+void        pg_path_rounded_rectangle(PgPath *path, float x, float y, float sx, float sy, float r);
 void        pg_path_reset(PgPath *path);
 void        pg_path_append(PgPath *path, const PgPath *src);

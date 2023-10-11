@@ -217,31 +217,28 @@ pg_path_rectangle(PgPath *path, float x, float y, float sx, float sy)
 
 
 void
-pg_path_rounded(PgPath *path, float x, float y, float sx, float sy, float rx, float ry)
+pg_path_rounded_rectangle(PgPath *path, float x, float y, float sx, float sy, float r)
 {
-    if (rx == 0.0f && ry == 0.0f) {
+    if (r == 0.0f && r == 0.0f) {
         pg_path_rectangle(path, x, y, sx, sy);
         return;
     }
 
-    if (rx > sx * .5f)
-        rx = sx * .5f;
+    if (r >= fminf(sx, sy) * .5f)
+        // - .25f is a hack to prevent overlapping lines.
+        r = fminf(sx, sy) * .5f - .25f;
 
-    if (ry > sy * .5f)
-        ry = sy * .5f;
+    sx -= r * 2.0f;
+    sy -= r * 2.0f;
 
-    sx -= rx * 2.0f;
-    sy -= ry * 2.0f;
-
-
-    pg_path_move(path, x + sx + rx, y);
-    pg_path_rcurve3(path, rx, .0f, .0f, ry);
+    pg_path_move(path, x + sx + r, y);
+    pg_path_rcurve3(path, r, .0f, .0f, r);
     pg_path_rline(path, .0f, sy);
-    pg_path_rcurve3(path, .0f, ry, -rx, .0f);
+    pg_path_rcurve3(path, .0f, r, -r, .0f);
     pg_path_rline(path, -sx, .0f);
-    pg_path_rcurve3(path, -rx, .0f, .0f, -ry);
+    pg_path_rcurve3(path, -r, .0f, .0f, -r);
     pg_path_rline(path, .0f, -sy);
-    pg_path_rcurve3(path, .0f, -ry, rx, .0f);
+    pg_path_rcurve3(path, .0f, -r, r, .0f);
     pg_path_close(path);
 }
 

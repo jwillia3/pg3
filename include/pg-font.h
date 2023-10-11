@@ -61,7 +61,7 @@ struct PgFace {
     const char          *style;
     const char          *path;
     unsigned            index;
-    unsigned            width;
+    unsigned            width_class;
     unsigned            weight;
     bool                is_fixed;
     bool                is_italic;
@@ -74,8 +74,6 @@ struct PgFace {
 
 PgFont*     pg_font_find(const char *family, unsigned weight, bool italic);
 PgFont*     pg_font_clone(PgFont *font);
-PgFamily*   pg_font_list(void);
-unsigned    pg_font_list_get_count(void);
 
 void        pg_font_free(PgFont *font);
 
@@ -101,3 +99,23 @@ const char  *pg_font_get_path(PgFont *font);
 PgFont*     pg_font_from_data(const char *path, const uint8_t *data, size_t size, unsigned index);
 PgFont*     pg_font_from_file(const char *path, unsigned index);
 PgFont*     pg_font_from_data_otf(const uint8_t *data, size_t size, unsigned index);
+
+
+const PgFamily* pg_font_list(void);
+unsigned        pg_font_list_get_count(void);
+const PgFamily* pg_font_list_get_family(unsigned n);
+const char*     pg_font_family_get_name(const PgFamily *family);
+const PgFace*   pg_font_family_get_face(const PgFamily *family, unsigned n);
+unsigned        pg_font_family_get_face_count(const PgFamily *family);
+const char*     pg_font_face_get_family(const PgFace *face);
+const char*     pg_font_face_get_style(const PgFace *face);
+const char*     pg_font_face_get_path(const PgFace *face);
+unsigned        pg_font_face_get_index(const PgFace *face);
+unsigned        pg_font_face_get_width_class(const PgFace *face);
+unsigned        pg_font_face_get_weight(const PgFace *face);
+bool            pg_font_face_get_is_fixed(const PgFace *face);
+bool            pg_font_face_get_is_italic(const PgFace *face);
+bool            pg_font_face_get_is_serif(const PgFace *face);
+bool            pg_font_face_get_is_sans_serif(const PgFace *face);
+unsigned        pg_font_face_get_style_class(const PgFace *face);
+unsigned        pg_font_face_get_style_subclass(const PgFace *face);

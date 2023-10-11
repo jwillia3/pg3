@@ -30,7 +30,7 @@ call(Pg *g, void subroutine(Pg *g))
     parent->path = sub->_.path;
     parent->s = sub->_.s;
     pg_canvas_translate(parent, sub->x, sub->y);
-    pg_canvas_set_scissors(parent,
+    pg_canvas_set_scissor(parent,
         fmaxf(sub->x, sub->x + g->s.clip_x),
         fmaxf(sub->y, sub->y + g->s.clip_y),
         fminf(g->s.clip_sx, sub->sx),
@@ -40,6 +40,15 @@ call(Pg *g, void subroutine(Pg *g))
 
     parent->path = old_path;
     parent->s = old_state;
+}
+
+
+static
+void
+commit(Pg *g) {
+    PgSubcanvas *sub = (void*) g;
+    if (sub && sub->parent && sub->parent->v->commit)
+        sub->parent->v->commit(sub->parent);
 }
 
 
@@ -76,12 +85,10 @@ fill_stroke(Pg *g)
 
 
 static
-void
-resize(Pg *g, float sx, float sy)
+PgPt
+set_size(Pg *g, float sx, float sy)
 {
-    (void) g;
-    (void) sx;
-    (void) sy;
+    return pgpt(fminf(g->sx, sx), fminf(g->sy, sy));
 }
 
 
@@ -94,11 +101,12 @@ _free(Pg *g)
 
 
 static const PgCanvasFunc methods = {
+    .commit = commit,
     .clear = clear,
     .fill = fill,
     .stroke = stroke,
     .fill_stroke = fill_stroke,
-    .resize = resize,
+    .set_size = set_size,
     .free = _free,
 };
 
@@ -111,12 +119,14 @@ pg_canvas_new_subcanvas(Pg *parent, float x, float y, float sx, float sy)
 
     if (sx < 0) sx = 0.0f;
     if (sy < 0) sy = 0.0f;
+    sx = fmaxf(0.0f, fminf(parent->sx - x, sx));
+    sy = fmaxf(0.0f, fminf(parent->sy - y, sy));
 
     return pgnew(PgSubcanvas,
                  _pg_canvas_init(&methods, sx, sy),
                  .parent = parent,
                  .x = truncf(x),
                  .y = truncf(y),
-                 .sx = ceilf(fminf(parent->sx - x, sx)),
-                 .sy = ceilf(fminf(parent->sy - y, sy)));
+                 .sx = ceilf(sx),
+                 .sy = ceilf(sy));
 }

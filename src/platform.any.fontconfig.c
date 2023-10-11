@@ -27,7 +27,7 @@ static
 bool
 exact_family_name_exists(const char *family)
 {
-    for (PgFamily *fam = pg_font_list(); fam->name; fam++)
+    for (const PgFamily *fam = pg_font_list(); fam->name; fam++)
         if (!pg_stricmp(fam->name, family)) return true;
     return false;
 }

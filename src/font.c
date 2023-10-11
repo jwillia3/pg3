@@ -25,8 +25,8 @@ compare_face(const void *ap, const void *bp)
     int             r;
 
     return (r = pg_stricmp(a->family, b->family))? r:
-            a->width < b->width?    -1:
-            a->width > b->width?    +1:
+            a->width_class < b->width_class?    -1:
+            a->width_class > b->width_class?    +1:
 
             a->weight < b->weight?  -1:
             a->weight > b->weight?  +1:
@@ -138,7 +138,7 @@ get_font_files(void)
 }
 
 
-PgFamily*
+const PgFamily*
 pg_font_list(void)
 {
 
@@ -164,7 +164,7 @@ pg_font_list(void)
             f.style = strdup(pg_font_prop_string(font, PG_FONT_STYLE));
             f.path = files[i];
             f.index = (unsigned) pg_font_prop_int(font, PG_FONT_INDEX);
-            f.width = (unsigned) pg_font_prop_int(font, PG_FONT_WIDTH_CLASS);
+            f.width_class = (unsigned) pg_font_prop_int(font, PG_FONT_WIDTH_CLASS);
             f.weight = (unsigned) pg_font_prop_int(font, PG_FONT_WEIGHT);
             f.is_fixed = (unsigned) pg_font_prop_int(font, PG_FONT_IS_FIXED);
             f.is_italic = pg_font_prop_int(font, PG_FONT_IS_ITALIC);
@@ -225,7 +225,7 @@ static
 bool
 exact_family_name_exists(const char *family)
 {
-    for (PgFamily *fam = pg_font_list(); fam->name; fam++)
+    for (const PgFamily *fam = pg_font_list(); fam->name; fam++)
         if (!pg_stricmp(fam->name, family)) return true;
     return false;
 }
@@ -283,7 +283,7 @@ fallback_substitute(const char *family)
             If no other option matches, this will return any
             font on the system.
          */
-        PgFamily    *all = pg_font_list();
+        const PgFamily *all = pg_font_list();
         return all? all->name: NULL;
     }
 
@@ -317,7 +317,7 @@ find_single_font(const char *family, unsigned weight, bool italic)
         return 0;
 
     // Search for family name in the list.
-    PgFamily *fam = pg_font_list();
+    const PgFamily *fam = pg_font_list();
     while (fam->name && pg_stricmp(fam->name, family))
         fam++;
 
@@ -326,7 +326,7 @@ find_single_font(const char *family, unsigned weight, bool italic)
     if ((substitute = _pg_fontconfig_substitute(family)) ||
         (substitute = fallback_substitute(family)))
     {
-        PgFamily *search = pg_font_list();
+        const PgFamily *search = pg_font_list();
         while (search->name && pg_stricmp(search->name, substitute))
             search++;
         if (search->name)
@@ -348,7 +348,7 @@ find_single_font(const char *family, unsigned weight, bool italic)
 
     for (PgFace *face = fam->faces; face->family; face++) {
         int score =
-            -abs((int) 5 - (int) face->width)          * 1000
+            -abs((int) 5 - (int) face->width_class)    * 1000
             -abs((int) weight - (int) face->weight)    * 1
             -abs((int) italic - (int) face->is_italic) * 101
             + 0;
@@ -612,7 +612,6 @@ pg_canvas_trace_glyph(Pg *g, PgFont *font, float x, float y, unsigned glyph)
         return 0.0f;
 
     font->v->glyph_path(g, font, x, y, glyph);
-
     return x + pg_font_measure_glyph(font, glyph);
 }
 
@@ -866,3 +865,116 @@ pg_font_fit_string(PgFont *font, const char *str, float width)
 
     return pg_font_fit_chars(font, str, strlen(str), width);
 }
+
+
+const PgFamily*
+pg_font_list_get_family(unsigned n)
+{
+    return n < pg_font_list_get_count()? _families + n: NULL;
+}
+
+
+const char*
+pg_font_family_get_name(const PgFamily *family)
+{
+    return family? family->name: NULL;
+}
+
+
+const PgFace*
+pg_font_family_get_face(const PgFamily *family, unsigned n)
+{
+    return family && n < family->nfaces? family->faces + n: NULL;
+}
+
+
+unsigned
+pg_font_family_get_face_count(const PgFamily *family)
+{
+    return family? family->nfaces: 0;
+}
+
+
+const char*
+pg_font_face_get_family(const PgFace *face)
+{
+    return face? face->family: NULL;
+}
+
+
+const char*
+pg_font_face_get_style(const PgFace *face)
+{
+    return face? face->style: NULL;
+}
+
+
+const char*
+pg_font_face_get_path(const PgFace *face)
+{
+    return face? face->path: NULL;
+}
+
+
+unsigned
+pg_font_face_get_index(const PgFace *face)
+{
+    return face? face->index: 0;
+}
+
+
+unsigned
+pg_font_face_get_width_class(const PgFace *face)
+{
+    return face? face->width_class: 0;
+}
+
+
+unsigned
+pg_font_face_get_weight(const PgFace *face)
+{
+    return face? face->weight: 0;
+}
+
+
+bool
+pg_font_face_get_is_fixed(const PgFace *face)
+{
+    return face? face->is_fixed: false;
+}
+
+
+bool
+pg_font_face_get_is_italic(const PgFace *face)
+{
+    return face? face->is_italic: false;
+}
+
+
+bool
+pg_font_face_get_is_serif(const PgFace *face)
+{
+    return face? face->is_serif: false;
+}
+
+
+bool
+pg_font_face_get_is_sans_serif(const PgFace *face)
+{
+    return face? face->is_sans_serif: false;
+}
+
+
+unsigned
+pg_font_face_get_style_class(const PgFace *face)
+{
+    return face? face->style_class: 0;
+}
+
+
+unsigned
+pg_font_face_get_style_subclass(const PgFace *face)
+{
+    return face? face->style_subclass: 0;
+}
+

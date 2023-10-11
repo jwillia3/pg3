@@ -36,7 +36,7 @@ struct PgCanvasFunc {
     void    (*fill)(Pg *g);
     void    (*stroke)(Pg *g);
     void    (*fill_stroke)(Pg *g);
-    void    (*resize)(Pg *g, float width, float height);
+    PgPt    (*set_size)(Pg *g, float width, float height);
     void    (*free)(Pg *g);
 };
 

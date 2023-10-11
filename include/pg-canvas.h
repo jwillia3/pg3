@@ -56,7 +56,7 @@ void        pg_canvas_rcurve3(Pg *g, float bx, float by, float cx, float cy);
 void        pg_canvas_curve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 void        pg_canvas_rcurve4(Pg *g, float bx, float by, float cx, float cy, float dx, float dy);
 void        pg_canvas_rectangle(Pg *g, float x, float y, float sx, float sy);
-void        pg_canvas_rounded_rectangle(Pg *g, float x, float y, float sx, float sy, float rx, float ry);
+void        pg_canvas_rounded_rectangle(Pg *g, float x, float y, float sx, float sy, float r);
 void        pg_canvas_close_path(Pg *g);
 void        pg_canvas_append_path(Pg *g, const PgPath *src);
 
@@ -83,7 +83,7 @@ void        pg_canvas_set_line_cap(Pg *g, PgLineCap line_cap);
 void        pg_canvas_set_flatness(Pg *g, float flatness);
 void        pg_canvas_set_gamma(Pg *g, float gamma);
 void        pg_canvas_set_fill_rule(Pg *g, PgFillRule fill_rule);
-void        pg_canvas_set_scissors(Pg *g, float x, float y, float sx, float sy);
+void        pg_canvas_set_scissor(Pg *g, float x, float y, float sx, float sy);
 void        pg_canvas_set_underline(Pg *g, bool underline);
 void        pg_canvas_scissor_reset(Pg *g);
 
@@ -98,6 +98,10 @@ float           pg_canvas_get_gamma(Pg *g);
 PgFillRule      pg_canvas_get_fill_rule(Pg *g);
 PgPt            pg_canvas_get_scissor_start(Pg *g);
 PgPt            pg_canvas_get_scissor_size(Pg *g);
+float           pg_canvas_get_scissor_start_x(Pg *g);
+float           pg_canvas_get_scissor_start_y(Pg *g);
+float           pg_canvas_get_scissor_size_x(Pg *g);
+float           pg_canvas_get_scissor_size_y(Pg *g);
 bool            pg_canvas_get_underline(Pg *g);
 
 PgPt        pg_mat_apply(PgTM ctm, PgPt p);

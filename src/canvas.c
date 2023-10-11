@@ -34,8 +34,11 @@ pg_canvas_set_size(Pg *g, float width, float height)
     if (!g)
         return;
 
-    if (g->v && g->v->resize)
-        g->v->resize(g, width, height);
+    if (g->v && g->v->set_size) {
+        PgPt adjusted = g->v->set_size(g, width, height);
+        width = adjusted.x;
+        height = adjusted.y;
+    }
 
     g->sx = width;
     g->sy = height;
@@ -400,11 +403,11 @@ pg_canvas_rectangle(Pg *g, float x, float y, float sx, float sy)
 
 
 void
-pg_canvas_rounded_rectangle(Pg *g, float x, float y, float sx, float sy, float rx, float ry)
+pg_canvas_rounded_rectangle(Pg *g, float x, float y, float sx, float sy, float r)
 {
     if (!g)
         return;
-    pg_path_rounded(g->path, x, y, sx, sy, rx, ry);
+    pg_path_rounded_rectangle(g->path, x, y, sx, sy, r);
 }
 
 
@@ -540,7 +543,7 @@ pg_canvas_set_fill_rule(Pg *g, PgFillRule fill_rule)
 
 
 void
-pg_canvas_set_scissors(Pg *g, float x, float y, float sx, float sy)
+pg_canvas_set_scissor(Pg *g, float x, float y, float sx, float sy)
 {
     if (!g)
         return;
@@ -669,6 +672,34 @@ pg_canvas_get_scissor_size(Pg *g)
     if (!g)
         return pgpt(0.0f, 0.0f);
     return pgpt(g->s.clip_sx, g->s.clip_sy);
+}
+
+
+float
+pg_canvas_get_scissor_start_x(Pg *g)
+{
+    return g? g->s.clip_x: 0.0f;
+}
+
+
+float
+pg_canvas_get_scissor_start_y(Pg *g)
+{
+    return g? g->s.clip_y: 0.0f;
+}
+
+
+float
+pg_canvas_get_scissor_size_x(Pg *g)
+{
+    return g? g->s.clip_sx: 0.0f;
+}
+
+
+float
+pg_canvas_get_scissor_size_y(Pg *g)
+{
+    return g? g->s.clip_sy: 0.0f;
 }
 
 

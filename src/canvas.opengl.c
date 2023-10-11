@@ -674,11 +674,12 @@ _fill_stroke(Pg *g)
 }
 
 
-static void
-_resize(Pg *g, float width, float height)
+static PgPt
+_set_size(Pg *g, float width, float height)
 {
     (void) g;
     glViewport(0.0f, 0.0f, (GLsizei) width, (GLsizei) height);
+    return pgpt(width, height);
 }
 
 
@@ -711,7 +712,7 @@ static const PgCanvasFunc methods = {
     _fill,
     _stroke,
     _fill_stroke,
-    _resize,
+    _set_size,
     _free,
 };
 
