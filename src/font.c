@@ -68,6 +68,15 @@ pg_font_list_get_count(void) {
 
 
 static
+int
+compare_strings(const void *p1, const void *p2)
+{
+    return strcmp(*(char**)p1, *(char**)p2);
+}
+
+
+
+static
 char **
 get_font_files(void)
 {
@@ -131,8 +140,16 @@ get_font_files(void)
         free(dirname);
     }
 
-    if (nfiles)
+    // De-duplicate file paths.
+    if (nfiles) {
+        qsort(files, nfiles, sizeof *files, compare_strings);
         files[nfiles] = 0;
+        nfiles = 1;
+        for (unsigned i = 1; files[i]; i++)
+            if (strcmp(files[nfiles - 1], files[i]))
+                files[nfiles++] = files[i];
+        files[nfiles] = 0;
+    }
 
     return files;
 }
