@@ -187,7 +187,6 @@ pg_canvas_free(Pg *g)
     if (!g)
         return;
 
-
     if (g->v && g->v->free)
         g->v->free(g);
 
@@ -195,7 +194,7 @@ pg_canvas_free(Pg *g)
         n = c->next,
         free(c);
 
-    free(g->path);
+    pg_path_free(g->path);
     free(g);
 }
 

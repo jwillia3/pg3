@@ -83,6 +83,7 @@ float       pg_window_get_width(PgWindow *win);
 float       pg_window_get_height(PgWindow *win);
 void        pg_window_update(PgWindow *win);
 void        pg_window_queue_update(PgWindow *win);
+void        pg_window_queue_dummy(PgWindow *win);
 
 PgWindowEvent*  pg_window_event_wait(void);
 

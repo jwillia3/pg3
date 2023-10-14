@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <EGL/egl.h>
@@ -15,11 +16,14 @@
 
 static Display          *xdisplay;
 static Window           xwindow;
+static Atom             WM_PROTOCOLS;
 static Atom             WM_DELETE_WINDOW;
+static Atom             IGNORE_MESSAGE;
 static PgWindow         *window;
 static EGLDisplay       egl_display;
 static EGLContext       egl_context;
 static EGLSurface       egl_surface;
+#define mouse_motion_cooldown (1/60.0)
 static const int        event_mask =  ExposureMask |
                                       PointerMotionMask |
                                       KeyPressMask |
@@ -38,6 +42,9 @@ setup_protocols(Window win, const char *title)
     if (!win)
         return 0;
 
+    IGNORE_MESSAGE = XInternAtom(xdisplay, "__IGNORE_MESSAGE", false);
+
+    WM_PROTOCOLS = XInternAtom(xdisplay, "WM_PROTOCOLS", false);
     WM_DELETE_WINDOW = XInternAtom(xdisplay, "WM_DELETE_WINDOW", false);
     XSetWMProtocols(xdisplay, win, &WM_DELETE_WINDOW, 1);
     XStoreName(xdisplay, win, title);
@@ -224,10 +231,31 @@ pg_window_queue_update(PgWindow *win)
 
 
 void
+pg_window_queue_dummy(PgWindow *win)
+{
+    if (!win)
+        return;
+    XClientMessageEvent e = {
+        .type = ClientMessage,
+        .message_type = IGNORE_MESSAGE,
+        .format = 8
+    };
+    XSendEvent(xdisplay, xwindow, false, 0, (XEvent*) &e);
+}
+
+
+void
 _pg_window_close(PgWindow *win)
 {
-    if (win)
-        XDestroyWindow(xdisplay, xwindow);
+    if (win) {
+        XClientMessageEvent e = {
+            .type = ClientMessage,
+            .message_type = WM_PROTOCOLS,
+            .format = 32,
+            .data.l[0] = WM_DELETE_WINDOW,
+        };
+        XSendEvent(xdisplay, xwindow, false, 0, (XEvent*) &e);
+    }
 }
 
 
@@ -247,8 +275,10 @@ static const char* name_button_chord(unsigned state, unsigned button);
 PgWindowEvent*
 pg_window_event_wait(void)
 {
-    if (!xdisplay)
-        return false;
+    redo:
+
+    if (!xdisplay || !xwindow)
+        return NULL;
 
     if (window->queued) {
         window->queued = false;
@@ -260,6 +290,8 @@ pg_window_event_wait(void)
     XEvent          xev;
     KeySym          keysym;
     PgPt            sz;
+    struct timespec ts;
+    double          now;
 
     const char      *name;
     unsigned        state;
@@ -353,6 +385,7 @@ pg_window_event_wait(void)
     case ClientMessage:
         if (xev.xclient.data.l[0] == (long) WM_DELETE_WINDOW) {
             e->any = (PgWindowEventAny) { window, PG_WINDOW_EVENT_CLOSED };
+            xwindow = 0;
             return e;
         }
         return e;
@@ -377,7 +410,7 @@ pg_window_event_wait(void)
         return e;
 
     case ButtonRelease:
-       e->mouse = (PgWindowEventMouse) {
+        e->mouse = (PgWindowEventMouse) {
             window,
             PG_WINDOW_EVENT_MOUSE_UP,
             .x = xev.xbutton.x,
@@ -387,7 +420,16 @@ pg_window_event_wait(void)
         return e;
 
     case MotionNotify:
-       e->mouse = (PgWindowEventMouse) {
+        /*
+            Throttle mouse motion updates to a given frame rate.
+        */
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        now = ts.tv_sec + ts.tv_nsec * 1.0e-9;
+        if (now < window->last_motion + mouse_motion_cooldown)
+            goto redo;
+        window->last_motion = now;
+
+        e->mouse = (PgWindowEventMouse) {
             window,
             PG_WINDOW_EVENT_MOUSE_MOVED,
             .x = xev.xmotion.x,
@@ -398,11 +440,12 @@ pg_window_event_wait(void)
 
     case DestroyNotify:
         e->any = (PgWindowEventAny) { window, PG_WINDOW_EVENT_CLOSED };
+        xwindow = 0;
         return e;
 
     }
 
-    return e;
+    goto redo;
 }
 
 
