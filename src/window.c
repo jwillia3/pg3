@@ -91,7 +91,7 @@ pg_window_free(PgWindow *win)
 PgWindowEventType
 pg_window_event_get_type(PgWindowEvent *e)
 {
-    return e? e->any.type: PG_WINDOW_EVENT_IGNORE;
+    return e? e->any.type: PG_EVENT_IGNORE;
 }
 
 
@@ -105,8 +105,8 @@ pg_window_event_get_window(PgWindowEvent *e)
 const char*
 pg_window_event_get_key(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_KEY_DOWN ||
-                e->type == PG_WINDOW_EVENT_KEY_UP)
+    return e && (e->type == PG_EVENT_KEY_DOWN ||
+                e->type == PG_EVENT_KEY_UP)
         ? e->key.key
         : NULL;
 }
@@ -115,17 +115,17 @@ pg_window_event_get_key(PgWindowEvent *e)
 const char*
 pg_window_event_get_text(PgWindowEvent *e)
 {
-    return e && e->type == PG_WINDOW_EVENT_TEXT? e->text.text: NULL;
+    return e && e->type == PG_EVENT_TEXT? e->text.text: NULL;
 }
 
 
 PgPt
 pg_window_event_get_mouse_pt(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_MOUSE_DOWN ||
-                e->type == PG_WINDOW_EVENT_MOUSE_UP ||
-                e->type == PG_WINDOW_EVENT_MOUSE_MOVED ||
-                e->type == PG_WINDOW_EVENT_MOUSE_WHEEL)
+    return e && (e->type == PG_EVENT_MOUSE_DOWN ||
+                e->type == PG_EVENT_MOUSE_UP ||
+                e->type == PG_EVENT_MOUSE_MOVED ||
+                e->type == PG_EVENT_MOUSE_WHEEL)
         ? pgpt(e->mouse.x, e->mouse.y)
         : pgpt(0.0f, 0.0f);
 }
@@ -134,10 +134,10 @@ pg_window_event_get_mouse_pt(PgWindowEvent *e)
 float
 pg_window_event_get_mouse_x(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_MOUSE_DOWN ||
-                e->type == PG_WINDOW_EVENT_MOUSE_UP ||
-                e->type == PG_WINDOW_EVENT_MOUSE_MOVED ||
-                e->type == PG_WINDOW_EVENT_MOUSE_WHEEL)
+    return e && (e->type == PG_EVENT_MOUSE_DOWN ||
+                e->type == PG_EVENT_MOUSE_UP ||
+                e->type == PG_EVENT_MOUSE_MOVED ||
+                e->type == PG_EVENT_MOUSE_WHEEL)
         ? e->mouse.x
         : 0.0f;
 }
@@ -146,10 +146,10 @@ pg_window_event_get_mouse_x(PgWindowEvent *e)
 float
 pg_window_event_get_mouse_y(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_MOUSE_DOWN ||
-                e->type == PG_WINDOW_EVENT_MOUSE_UP ||
-                e->type == PG_WINDOW_EVENT_MOUSE_MOVED ||
-                e->type == PG_WINDOW_EVENT_MOUSE_WHEEL)
+    return e && (e->type == PG_EVENT_MOUSE_DOWN ||
+                e->type == PG_EVENT_MOUSE_UP ||
+                e->type == PG_EVENT_MOUSE_MOVED ||
+                e->type == PG_EVENT_MOUSE_WHEEL)
         ? e->mouse.y
         : 0.0f;
 }
@@ -158,10 +158,10 @@ pg_window_event_get_mouse_y(PgWindowEvent *e)
 float
 pg_window_event_get_mouse_wheel(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_MOUSE_DOWN ||
-                e->type == PG_WINDOW_EVENT_MOUSE_UP ||
-                e->type == PG_WINDOW_EVENT_MOUSE_MOVED ||
-                e->type == PG_WINDOW_EVENT_MOUSE_WHEEL)
+    return e && (e->type == PG_EVENT_MOUSE_DOWN ||
+                e->type == PG_EVENT_MOUSE_UP ||
+                e->type == PG_EVENT_MOUSE_MOVED ||
+                e->type == PG_EVENT_MOUSE_WHEEL)
         ? e->mouse.wheel
         : 0.0f;
 }
@@ -170,10 +170,10 @@ pg_window_event_get_mouse_wheel(PgWindowEvent *e)
 const char*
 pg_window_event_get_mouse_button(PgWindowEvent *e)
 {
-    return e && (e->type == PG_WINDOW_EVENT_MOUSE_DOWN ||
-                e->type == PG_WINDOW_EVENT_MOUSE_UP ||
-                e->type == PG_WINDOW_EVENT_MOUSE_MOVED ||
-                e->type == PG_WINDOW_EVENT_MOUSE_WHEEL)
+    return e && (e->type == PG_EVENT_MOUSE_DOWN ||
+                e->type == PG_EVENT_MOUSE_UP ||
+                e->type == PG_EVENT_MOUSE_MOVED ||
+                e->type == PG_EVENT_MOUSE_WHEEL)
         ? e->mouse.button
         : NULL;
 }
@@ -182,13 +182,13 @@ pg_window_event_get_mouse_button(PgWindowEvent *e)
 float
 pg_window_event_get_resized_width(PgWindowEvent *e)
 {
-    return e && e->type == PG_WINDOW_EVENT_RESIZED? e->resized.width: 0.0f;
+    return e && e->type == PG_EVENT_RESIZED? e->resized.width: 0.0f;
 }
 
 
 float
 pg_window_event_get_resized_height(PgWindowEvent *e)
 {
-    return e && e->type == PG_WINDOW_EVENT_RESIZED? e->resized.height: 0.0f;
+    return e && e->type == PG_EVENT_RESIZED? e->resized.height: 0.0f;
 }
 

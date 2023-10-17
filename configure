@@ -15,7 +15,7 @@ INCLUDE=./include
 PKGS=
 
 case "$(uname)" in
-    FreeBSD)
+    *BSD)
         prefix=/usr/local;;
     Darwin)
         prefix=/usr/local;;

@@ -10,8 +10,6 @@ struct PgSubcanvas {
     Pg      *parent;
     float   x;
     float   y;
-    float   sx;
-    float   sy;
 };
 
 
@@ -29,12 +27,13 @@ call(Pg *g, void subroutine(Pg *g))
 
     parent->path = sub->_.path;
     parent->s = sub->_.s;
+
     pg_canvas_translate(parent, sub->x, sub->y);
     pg_canvas_set_scissor(parent,
-        fmaxf(sub->x, sub->x + g->s.clip_x),
-        fmaxf(sub->y, sub->y + g->s.clip_y),
-        fminf(g->s.clip_sx, sub->sx),
-        fminf(g->s.clip_sy, sub->sy));
+                          sub->x + fmaxf(g->s.clip_x, 0.0f),
+                          sub->y + fmaxf(g->s.clip_y, 0.0f),
+                          fminf(fmaxf(g->s.clip_sx, 0.0f), g->sx),
+                          fminf(fmaxf(g->s.clip_sy, 0.0f), g->sy));
 
     subroutine(parent);
 
@@ -88,6 +87,9 @@ static
 PgPt
 set_size(Pg *g, float sx, float sy)
 {
+    /*
+        Only allow shrinking.
+     */
     return pgpt(fminf(g->sx, sx), fminf(g->sy, sy));
 }
 
@@ -117,16 +119,14 @@ pg_canvas_new_subcanvas(Pg *parent, float x, float y, float sx, float sy)
     if (!parent)
         return 0;
 
-    if (sx < 0) sx = 0.0f;
-    if (sy < 0) sy = 0.0f;
-    sx = fmaxf(0.0f, fminf(parent->sx - x, sx));
-    sy = fmaxf(0.0f, fminf(parent->sy - y, sy));
+    x = floorf(x);
+    y = floorf(y);
+    sx = ceilf(sx);
+    sy = ceilf(sy);
 
     return pgnew(PgSubcanvas,
                  _pg_canvas_init(&methods, sx, sy),
                  .parent = parent,
-                 .x = truncf(x),
-                 .y = truncf(y),
-                 .sx = ceilf(sx),
-                 .sy = ceilf(sy));
+                 .x = x,
+                 .y = y);
 }

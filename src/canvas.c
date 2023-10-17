@@ -55,8 +55,8 @@ _pg_canvas_init(const PgCanvasFunc *v, float width, float height)
 {
     Pg canvas = {
                     .v = v,
-                    .sx = width,
-                    .sy = height,
+                    .sx = ceilf(width),
+                    .sy = ceilf(height),
                     .path = pg_path_new(),
                 };
 

@@ -8,18 +8,18 @@ typedef struct PgWindowEventKey     PgWindowEventKey;
 typedef struct PgWindowEventText    PgWindowEventText;
 typedef struct PgWindowEventMouse   PgWindowEventMouse;
 typedef enum {
-    PG_WINDOW_EVENT_IGNORE,
-    PG_WINDOW_EVENT_PAINT,
-    PG_WINDOW_EVENT_RESIZED,
-    PG_WINDOW_EVENT_CLOSED,
-    PG_WINDOW_EVENT_KEY_DOWN,
-    PG_WINDOW_EVENT_KEY_UP,
-    PG_WINDOW_EVENT_TEXT,
-    PG_WINDOW_EVENT_MOUSE_DOWN,
-    PG_WINDOW_EVENT_MOUSE_UP,
-    PG_WINDOW_EVENT_MOUSE_MOVED,
-    PG_WINDOW_EVENT_MOUSE_WHEEL,
-    PG_WINDOW_EVENT_USER,
+    PG_EVENT_IGNORE,
+    PG_EVENT_PAINT,
+    PG_EVENT_RESIZED,
+    PG_EVENT_CLOSED,
+    PG_EVENT_KEY_DOWN,
+    PG_EVENT_KEY_UP,
+    PG_EVENT_TEXT,
+    PG_EVENT_MOUSE_DOWN,
+    PG_EVENT_MOUSE_UP,
+    PG_EVENT_MOUSE_MOVED,
+    PG_EVENT_MOUSE_WHEEL,
+    PG_EVENT_USER,
 } PgWindowEventType;
 
 struct PgWindowEventAny {

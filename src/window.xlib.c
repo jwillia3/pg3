@@ -308,7 +308,7 @@ pg_window_event_wait(void)
             /*
                 Multiple exposes may come. Only post message on last expose.
              */
-            e->any = (PgWindowEventAny) { window, PG_WINDOW_EVENT_PAINT };
+            e->any = (PgWindowEventAny) { window, PG_EVENT_PAINT };
         return e;
 
     case ConfigureNotify:
@@ -323,7 +323,7 @@ pg_window_event_wait(void)
                                xev.xconfigure.height);
             e->resized = (PgWindowEventResized) {
                 window,
-                PG_WINDOW_EVENT_RESIZED,
+                PG_EVENT_RESIZED,
                 .width = xev.xconfigure.width,
                 .height = xev.xconfigure.height,
             };
@@ -360,7 +360,7 @@ pg_window_event_wait(void)
                     window->queued = true,
                     window->q.text = (PgWindowEventText) {
                         window,
-                        PG_WINDOW_EVENT_TEXT,
+                        PG_EVENT_TEXT,
                         .text = window->q.text.tmp,
                     };
                     memcpy(window->q.text.tmp, buf, nchars);
@@ -369,7 +369,7 @@ pg_window_event_wait(void)
 
             e->key = (PgWindowEventKey) {
                 window,
-                PG_WINDOW_EVENT_KEY_DOWN,
+                PG_EVENT_KEY_DOWN,
                 .key = name,
             };
             return e;
@@ -377,14 +377,14 @@ pg_window_event_wait(void)
 
         e->key = (PgWindowEventKey) {
             window,
-            PG_WINDOW_EVENT_KEY_UP,
+            PG_EVENT_KEY_UP,
             .key = name,
         };
         return e;
 
     case ClientMessage:
         if (xev.xclient.data.l[0] == (long) WM_DELETE_WINDOW) {
-            e->any = (PgWindowEventAny) { window, PG_WINDOW_EVENT_CLOSED };
+            e->any = (PgWindowEventAny) { window, PG_EVENT_CLOSED };
             xwindow = 0;
             return e;
         }
@@ -394,7 +394,7 @@ pg_window_event_wait(void)
         if (xev.xbutton.button == 4 || xev.xbutton.button == 5)
             e->mouse = (PgWindowEventMouse) {
                 window,
-                PG_WINDOW_EVENT_MOUSE_WHEEL,
+                PG_EVENT_MOUSE_WHEEL,
                 .x = xev.xbutton.x,
                 .y = xev.xbutton.y,
                 .wheel = xev.xbutton.button == 4? -1: 1,
@@ -402,7 +402,7 @@ pg_window_event_wait(void)
         else
             e->mouse = (PgWindowEventMouse) {
                 window,
-                PG_WINDOW_EVENT_MOUSE_DOWN,
+                PG_EVENT_MOUSE_DOWN,
                 .x = xev.xbutton.x,
                 .y = xev.xbutton.y,
                 .button = name_button_chord(xev.xbutton.state, xev.xbutton.button),
@@ -412,7 +412,7 @@ pg_window_event_wait(void)
     case ButtonRelease:
         e->mouse = (PgWindowEventMouse) {
             window,
-            PG_WINDOW_EVENT_MOUSE_UP,
+            PG_EVENT_MOUSE_UP,
             .x = xev.xbutton.x,
             .y = xev.xbutton.y,
             .button = name_button_chord(xev.xbutton.state, xev.xbutton.button),
@@ -431,7 +431,7 @@ pg_window_event_wait(void)
 
         e->mouse = (PgWindowEventMouse) {
             window,
-            PG_WINDOW_EVENT_MOUSE_MOVED,
+            PG_EVENT_MOUSE_MOVED,
             .x = xev.xmotion.x,
             .y = xev.xmotion.y,
         };
@@ -439,7 +439,7 @@ pg_window_event_wait(void)
 
 
     case DestroyNotify:
-        e->any = (PgWindowEventAny) { window, PG_WINDOW_EVENT_CLOSED };
+        e->any = (PgWindowEventAny) { window, PG_EVENT_CLOSED };
         xwindow = 0;
         return e;
 

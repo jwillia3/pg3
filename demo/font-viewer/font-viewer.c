@@ -343,16 +343,16 @@ int main(int argc, char **argv)
     PgWindowEvent   *e;
     while ((e = pg_window_event_wait())) {
         switch (e->type) {
-        case PG_WINDOW_EVENT_PAINT:
-        case PG_WINDOW_EVENT_RESIZED:
+        case PG_EVENT_PAINT:
+        case PG_EVENT_RESIZED:
             redraw(pg_window_get_canvas(win));
             break;
 
-        case PG_WINDOW_EVENT_KEY_DOWN:
+        case PG_EVENT_KEY_DOWN:
             on_keydown(e->win, e->key.key);
             break;
 
-        case PG_WINDOW_EVENT_CLOSED:
+        case PG_EVENT_CLOSED:
             return 0;
         default:
             break;
