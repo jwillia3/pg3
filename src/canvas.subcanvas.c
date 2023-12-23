@@ -124,9 +124,13 @@ pg_canvas_new_subcanvas(Pg *parent, float x, float y, float sx, float sy)
     sx = ceilf(sx);
     sy = ceilf(sy);
 
-    return pgnew(PgSubcanvas,
-                 _pg_canvas_init(&methods, sx, sy),
-                 .parent = parent,
-                 .x = x,
-                 .y = y);
+    Pg *sub = pgnew(PgSubcanvas,
+        _pg_canvas_init(&methods, sx, sy),
+        .parent = parent,
+        .x = x,
+        .y = y);
+
+    sub->s = parent->s;
+
+    return sub;
 }

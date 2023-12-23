@@ -98,9 +98,9 @@ setup_glx(unsigned width, unsigned height, const char *title)
                     GLX_DRAWABLE_TYPE,  GLX_WINDOW_BIT,
                     GLX_X_VISUAL_TYPE,  GLX_TRUE_COLOR,
                     GLX_STENCIL_SIZE,   8,
-                    // GLX_DOUBLEBUFFER,   true,
+                    GLX_DOUBLEBUFFER,   true,
                     GLX_SAMPLE_BUFFERS, 1,
-                    GLX_SAMPLES,        4,
+                    GLX_SAMPLES,        8,
                     None
                 };
 
@@ -192,8 +192,12 @@ _pg_window_open(unsigned width, unsigned height, const char *title)
          */
         return NULL;
 
-    if (!xdisplay)
+    if (!xdisplay) {
         xdisplay = XOpenDisplay(NULL);
+
+        if (!xdisplay)
+            return NULL;
+    }
 
     if (!setup_egl(width, height, title) &&
         !setup_glx(width, height, title))
@@ -226,7 +230,7 @@ pg_window_queue_update(PgWindow *win)
 {
     if (!win)
         return;
-    XClearArea(xdisplay, xwindow, 0, 0, window->width, window->height, true);
+    XClearArea(xdisplay, xwindow, 0, 0, 0, 0, true);
 }
 
 
@@ -321,6 +325,7 @@ pg_window_event_wait(void)
             pg_canvas_set_size(window->g,
                                xev.xconfigure.width,
                                xev.xconfigure.height);
+            pg_window_queue_update(window);
             e->resized = (PgWindowEventResized) {
                 window,
                 PG_EVENT_RESIZED,

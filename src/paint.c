@@ -157,6 +157,7 @@ static Spec         specs[] = {
     {"ui-accent", PG_LCHAB, .2, .5, .75, 1},
     {"ui-bg", PG_LCHAB, .9, .0, .0, 1},
     {"ui-dim", PG_LCHAB, .5, .0, .0, 1},
+    {"ui-face", PG_LCHAB, .7, .0, .0, 1},
     {"ui-fg", PG_LCHAB, .2, .0, .0, 1},
     {"violet",PG_LINEAR_RGB, 0.933333,0.509804,0.933333, 1},
     {"wheat",PG_LINEAR_RGB, 0.960784,0.870588,0.701961, 1},

@@ -1633,6 +1633,7 @@ _number(PgFont *font, PgFontProp id)
 
     switch (id) {
     case PG_FONT_FORMAT:        return 0;
+    case PG_FONT_FILE_PATH:     return 0;
     case PG_FONT_INDEX:         return (float) OTF(font)->fontindex;
     case PG_FONT_NFONTS:        return (float) OTF(font)->nfonts;
     case PG_FONT_IS_FIXED:      return (float) TD(post, 12);
@@ -1689,6 +1690,7 @@ _int(PgFont *font, PgFontProp id)
 
     switch (id) {
     case PG_FONT_FORMAT:        return 0;
+    case PG_FONT_FILE_PATH:     return 0;
     case PG_FONT_INDEX:         return (int) OTF(font)->fontindex;
     case PG_FONT_NFONTS:        return (int) OTF(font)->nfonts;
     case PG_FONT_IS_FIXED:      return (int) TD(post, 12);
@@ -1744,6 +1746,8 @@ _string(PgFont *font, PgFontProp id)
     char    *limit = buf + 256;
 
     switch (id) {
+
+    case PG_FONT_FILE_PATH:     return  font->path? font->path: "";
 
     case PG_FONT_FORMAT:        return  OTF(font)->cffver? "CFF": "TTF";
 

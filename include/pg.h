@@ -4,6 +4,8 @@
 #include <stdint.h>
 
 #define pgnew(t, ...) memcpy(malloc(sizeof(t)), &(t){__VA_ARGS__}, sizeof(t))
+#define pgclone(t) memcpy(malloc(sizeof(t)), &t, sizeof(t))
+#define pgcopy(n, t) memcpy(malloc((n)*sizeof(*t)), t, (n)*sizeof(*t))
 
 typedef struct PgPt         PgPt;
 

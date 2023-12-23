@@ -557,13 +557,6 @@ pg_font_prop_string(PgFont *font, PgFontProp id)
 }
 
 
-const char*
-pg_font_get_path(PgFont *font)
-{
-    return font? font->path: NULL;
-}
-
-
 PgFont*
 pg_font_scale(PgFont *font, float sx, float sy)
 {
@@ -585,8 +578,10 @@ pg_font_scale(PgFont *font, float sx, float sy)
     else if (sy == 0.0f)
         sy = sx;
 
-    font->sx = sx / font->units;
-    font->sy = sy / font->units;
+    float scale = font->ascender - font->descender;
+
+    font->sx = sx / scale;
+    font->sy = sy / scale;
 
     font->v->scale(font, sx, sy);
     return font;
@@ -596,7 +591,7 @@ pg_font_scale(PgFont *font, float sx, float sy)
 float
 pg_font_get_height(PgFont *font)
 {
-    return pg_font_get_em(font).y;
+    return font? font->sy * (font->ascender - font->descender): 0.0f;
 }
 
 

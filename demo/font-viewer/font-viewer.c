@@ -197,7 +197,7 @@ redraw(Pg *g)
     y += pg_font_get_height(ui_small_font) * 6.0;
 
     x = pg_canvas_printf(g, ui_small_font, max_x, y, "Path: %s",
-                         pg_font_get_path(fontmgr.the_font));
+                         pg_font_prop_string(fontmgr.the_font, PG_FONT_FILE_PATH));
     y += pg_font_get_height(ui_small_font);
     x = pg_canvas_printf(g, ui_small_font, max_x, y, "Weights: ");
     {
