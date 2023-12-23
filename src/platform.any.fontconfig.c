@@ -3,8 +3,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <fontconfig/fontconfig.h>
-#include <pg.h>
-#include <pg-utf-8.h>
+#include <pg3/pg.h>
+#include <pg3/pg-utf-8.h>
 
 unsigned
 _pg_fontconfig_font_dirs(char **queue, unsigned max)
@@ -106,8 +106,8 @@ _pg_fontconfig_substitute(const char *family)
 #else
 
 
-#include <pg.h>
-#include <pg-internal-platform.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-platform.h>
 
 
 unsigned

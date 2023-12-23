@@ -16,8 +16,8 @@ struct PgPt {
 
 #define pgpt(X, Y)              ((PgPt) { (X), (Y) })
 
-#include <pg-paint.h>
-#include <pg-path.h>
-#include <pg-font.h>
-#include <pg-canvas.h>
-#include <pg-window.h>
+#include <pg3/pg-paint.h>
+#include <pg3/pg-path.h>
+#include <pg3/pg-font.h>
+#include <pg3/pg-canvas.h>
+#include <pg3/pg-window.h>

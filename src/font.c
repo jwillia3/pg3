@@ -7,10 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <pg.h>
-#include <pg-utf-8.h>
-#include <pg-internal-font.h>
-#include <pg-internal-platform.h>
+#include <pg3/pg.h>
+#include <pg3/pg-utf-8.h>
+#include <pg3/pg-internal-font.h>
+#include <pg3/pg-internal-platform.h>
 
 
 static PgFamily *_families;

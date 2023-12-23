@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
-#include <pg.h>
-#include <pg-box.h>
+#include <pg3/pg.h>
+#include <pg3/pg-box.h>
 
 struct map {
     PgWindow*   window;

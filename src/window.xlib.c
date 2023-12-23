@@ -11,8 +11,8 @@
 #include <EGL/egl.h>
 #include <GL/glew.h>
 #include <GL/glx.h>
-#include <pg.h>
-#include <pg-internal-window.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-window.h>
 
 static Display          *xdisplay;
 static Window           xwindow;

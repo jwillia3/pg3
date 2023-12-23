@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <GL/glew.h>
-#include <pg.h>
-#include <pg-internal-canvas.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-canvas.h>
 #include "help.geometry.h"
 
 #define BEZIER_LIMIT    10

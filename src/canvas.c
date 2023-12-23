@@ -1,9 +1,9 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
-#include <pg.h>
-#include <pg-internal-canvas.h>
-#include <pg-internal-platform.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-canvas.h>
+#include <pg3/pg-internal-platform.h>
 
 
 PgPt

@@ -5,7 +5,7 @@ OPENGL=1
 FONTCONFIG=1
 XLIB=1
 
-prefix=/usr/local
+prefix=
 
 srcdir=$(realpath .)
 pkgconfigdir=$(pkg-config --variable pc_path pkg-config | cut -f1 -d:)
@@ -14,14 +14,24 @@ INCLUDE=./include
 
 PKGS=
 
-case "$(uname)" in
-    *BSD)
-        prefix=/usr/local;;
-    Darwin)
-        prefix=/usr/local;;
-    Linux)
-        prefix=/usr;;
-esac
+# Set prefix if user specified.
+# Otherwise, try to detect based on OS.
+
+if [ $(echo "$1" | grep '^prefix=') ]
+then
+
+    prefix=$(echo "$1" | sed -n 's/^prefix=\(.*\)$/\1/p')
+
+else
+    case "$(uname)" in
+        *BSD)
+            prefix=/usr/local;;
+        Darwin)
+            prefix=/usr/local;;
+        Linux)
+            prefix=/usr;;
+	esac
+fi
 
 if [ $OPENGL = 1 ]; then PKGS="$PKGS gl glew"; fi
 if [ $FONTCONFIG = 1 ]; then PKGS="$PKGS fontconfig"; fi
@@ -36,7 +46,7 @@ if [ $XLIB = 1 ]; then CFLAGS="$CFLAGS -DUSE_XLIB"; fi
 
 sed <Makefile.in >Makefile "
 s|^prefix=.*|prefix=$prefix|
-s|^pkgconfigdir=.*|pkgconfigdir=$pkgconfigdir|
+s|^pkgconfigdir=.*|pkgconfigdir=\$(prefix)$pkgconfigdir|
 s|^ALL_CFLAGS=.*\$|& $CFLAGS|
 s|^PKGS=.*|& $PKGS|
 "

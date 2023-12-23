@@ -16,9 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pg.h>
-#include <pg-internal-font.h>
-#include <pg-utf-8.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-font.h>
+#include <pg3/pg-utf-8.h>
 #include "help.geometry.h"
 
 

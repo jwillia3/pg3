@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pg.h>
-#include <pg-internal-platform.h>
-#include <pg-internal-window.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-platform.h>
+#include <pg3/pg-internal-window.h>
 
 
 PgPt

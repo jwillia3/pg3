@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pg.h>
+#include <pg3/pg.h>
 
 struct conf {
     PgFont*     text;

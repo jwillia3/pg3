@@ -1,33 +1,63 @@
+.POSIX:
+
 SHELL=/bin/sh
+
 .SUFFIXES:
 .SUFFIXES: .c .o
 
-prefix=/usr/local
-pkgconfigdir=/usr/local/libdata/pkgconfig
+prefix=/home/jlw/.local
+pkgconfigdir=$(prefix)/usr/local/libdata/pkgconfig
 libdir=$(prefix)/lib
 includedir=$(prefix)/include
 
 CFLAGS=-g -O2
-ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration -I/usr/home/jlw/src/pg3/include -DUSE_UNIX -DUSE_OPENGL -DUSE_FONTCONFIG -DUSE_XLIB
+ALL_CFLAGS=-Wall -Wextra -std=c11 -D_XOPEN_SOURCE=700 -Werror=implicit-function-declaration -I/home/jlw/src/pg3/include -DUSE_UNIX -DUSE_OPENGL -DUSE_FONTCONFIG -DUSE_XLIB
 
 PKGS=  gl glew fontconfig x11 egl gl glew
 PKG_CFLAGS=`pkg-config --cflags $(PKGS)`
 PKG_LIBS=`pkg-config --libs $(PKGS)`
 LIBS=-lm
 
-SRC!=echo src/*.c
-OBJS=$(SRC:.c=.o)
+HEADERS=\
+    include/pg3/pg-canvas.h\
+    include/pg3/pg-font.h\
+    include/pg3/pg-internal-canvas.h\
+    include/pg3/pg-internal-font.h\
+    include/pg3/pg-internal-platform.h\
+    include/pg3/pg-internal-window.h\
+    include/pg3/pg-paint.h\
+    include/pg3/pg-path.h\
+    include/pg3/pg-utf-8.h\
+    include/pg3/pg-window.h\
+    include/pg3/pg.h
 
-.test: libpg3.so
-	cd demo/imgui && make
+SRCS=\
+	src/canvas.c \
+	src/canvas.opengl.c \
+	src/canvas.subcanvas.c \
+	src/font.c \
+	src/font.opentype.c \
+	src/paint.c \
+	src/path.c \
+	src/platform.any.fontconfig.c \
+	src/platform.unix.c \
+	src/window.c \
+	src/window.xlib.c
+
+OBJS=$(SRCS:.c=.o)
 
 all: libpg3.so
 
-libpg3.so: $(OBJS)
-	$(CC) -fpic -shared -olibpg3.so $(CFLAGS) $(ALL_CFLAGS) $(OBJS) $(PKG_LIBS) $(LIBS)
+test: libpg3.so
+	make -C demo/font-viewer
 
-.c.o: Makefile include/*.h src/*.h
-	$(CC) -c -fpic $(ALL_CFLAGS) $(PKG_CFLAGS) $(CFLAGS) $< -o $*.o
+libpg3.so: $(OBJS)
+	cc -fpic -shared -o $* $(CFLAGS) $(ALL_CFLAGS) $(OBJS) $(PKG_LIBS) $(LIBS)
+
+.c: $(HEADERS) Makefile
+
+.c.o:
+	cc -c -fpic $(ALL_CFLAGS) $(PKG_CFLAGS) $(CFLAGS) -o $@ $<
 
 clean:
 	-rm -rf src/*.o libpg3.so bin/*
@@ -38,10 +68,10 @@ install: all
 	-mkdir -p $(DESTDIR)$(pkgconfigdir)
 
 	install libpg3.so $(DESTDIR)$(libdir)/
-	install -d include $(DESTDIR)$(includedir)/pg3/include
+	install include/pg3/* $(DESTDIR)$(includedir)/pg3/
 	install pg3.pc $(DESTDIR)$(pkgconfigdir)/
 
 uninstall:
 	-rm -f $(DESTDIR)$(libdir)/libpg3.so
-	-rm -f $(DESTDIR)$(includedir)/pg3
+	-rm -rf $(DESTDIR)$(includedir)/pg3
 	-rm -f $(DESTDIR)$(pkgconfigdir)/pg3.pc

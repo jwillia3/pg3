@@ -1,8 +1,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pg.h>
-#include <pg-internal-canvas.h>
+#include <pg3/pg.h>
+#include <pg3/pg-internal-canvas.h>
 
 typedef struct PgSubcanvas PgSubcanvas;
 struct PgSubcanvas {

@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <pg.h>
+#include <pg3/pg.h>
 
 
 static char*
