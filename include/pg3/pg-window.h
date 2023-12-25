@@ -52,7 +52,7 @@ struct PgWindowEventMouse {
     PgWindowEventType   type;
     float               x;
     float               y;
-    float               wheel;
+    int                 wheel;
     const char          *button;
 };
 
