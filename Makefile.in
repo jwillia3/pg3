@@ -67,9 +67,9 @@ install: all
 	-mkdir -p $(DESTDIR)$(includedir)/pg3
 	-mkdir -p $(DESTDIR)$(pkgconfigdir)
 
-	install libpg3.so $(DESTDIR)$(libdir)/
-	install include/pg3/* $(DESTDIR)$(includedir)/pg3/
-	install pg3.pc $(DESTDIR)$(pkgconfigdir)/
+	install -m444 libpg3.so $(DESTDIR)$(libdir)/
+	install -m444 include/pg3/* $(DESTDIR)$(includedir)/pg3/
+	install -m444 pg3.pc $(DESTDIR)$(pkgconfigdir)/
 
 uninstall:
 	-rm -f $(DESTDIR)$(libdir)/libpg3.so
