@@ -7,6 +7,7 @@ struct PgWindow {
     PgWindowEvent   q;
     bool            queued;
     double          last_motion;
+    int             wait_fd;
 };
 
 

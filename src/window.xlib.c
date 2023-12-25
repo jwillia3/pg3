@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <time.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -193,6 +194,9 @@ _pg_window_open(unsigned width, unsigned height, const char *title)
         return NULL;
 
     if (!xdisplay) {
+        if (!XInitThreads())
+            return NULL;
+
         xdisplay = XOpenDisplay(NULL);
 
         if (!xdisplay)
@@ -316,10 +320,33 @@ pg_window_event_wait(void)
     const char      *name;
     unsigned        state;
 
+    *e = (PgWindowEvent) {0};
+
+    if (!XPending(xdisplay)) {
+        int             xfd = ConnectionNumber(xdisplay);
+        struct timeval  timeout = {0, 1000000 / 60};
+        fd_set          readfds;
+
+        if (xfd >= 0) {
+
+            XFlush(xdisplay);
+
+            FD_ZERO(&readfds);
+            FD_SET(xfd, &readfds);
+
+            int res = select(1024, &readfds, NULL, NULL, &timeout);
+
+            if (res == 0)
+                return e;
+
+            if (res < 0)
+                // Something went wrong, but we can't fix it.
+                return e;
+        }
+    }
 
     XNextEvent(xdisplay, &xev);
 
-    memset(e, 0, sizeof *e);
 
     switch (xev.type) {
 
