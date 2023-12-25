@@ -248,6 +248,9 @@ pg_paint_free(PgPaint *paint)
     if (!paint)
         return;
 
+    if (paint->immortal)
+        return;
+
     free(paint);
 }
 
@@ -346,12 +349,15 @@ pg_paint_from_name(const char *name)
     if (index < 0)
         return 0;
 
-    if (paints[index] == NULL)
+    if (paints[index] == NULL) {
         paints[index] = pg_paint_new_solid(specs[index].cspace,
                                            specs[index].u,
                                            specs[index].v,
                                            specs[index].w,
                                            specs[index].a);
+        paints[index]->immortal = true;
+    }
+
     return paints[index];
 }
 

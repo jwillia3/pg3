@@ -1,8 +1,8 @@
-.font-viewer: ../../bin/font-viewer
-	LD_LIBRARY_PATH=../.. ../../bin/font-viewer
+font-viewer: .libpg3.so font-viewer.c
+	$(CC) $(CFLAGS) -I../../include -L../.. font-viewer.c -o font-viewer -lm -lpg3
 
-../../bin/font-viewer: .libpg3.so font-viewer.c
-	$(CC) $(CFLAGS) -o../../bin/font-viewer -I../../include -L../.. font-viewer.c -lm -lpg3
+test: font-viewer
+	LD_LIBRARY_PATH=../.. ./font-viewer
 
 .libpg3.so:
-	cd ../.. && make libpg3.so
+	make -C.. ../libpg3.so

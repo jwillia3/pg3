@@ -32,6 +32,7 @@ struct PgPaint {
     PgPt                b;
     float               ra;
     float               rb;
+    bool                immortal;
 };
 
 
