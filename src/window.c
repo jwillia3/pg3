@@ -47,6 +47,13 @@ pg_window_get_size(PgWindow *win)
     return win? pgpt(win->width, win->height): pgpt(0, 0);
 }
 
+void
+pg_window_set_size(PgWindow *win, unsigned width, unsigned height)
+{
+    if (win)
+        _pg_window_set_size(win, width, height);
+}
+
 
 float
 pg_window_get_width(PgWindow *win)
@@ -62,10 +69,38 @@ pg_window_get_height(PgWindow *win)
 }
 
 
+const char*
+pg_window_get_title(PgWindow *win)
+{
+    return win? win->title: NULL;
+}
+
+
+void
+pg_window_set_title(PgWindow *win, const char *title)
+{
+    if (!win)
+        return;
+
+    free((void*) win->title);
+
+    win->title = strdup(title);
+
+    _pg_window_set_title(win, win->title);
+}
+
+
 PgWindow*
 pg_window_open(unsigned width, unsigned height, const char *title)
 {
-    return _pg_window_open(width, height, title);
+    PgWindow *win = _pg_window_open(width, height, title);
+
+    if (!win)
+        return NULL;
+
+    win->title = strdup(title);
+
+    return win;
 }
 
 
@@ -191,4 +226,3 @@ pg_window_event_get_resized_height(PgWindowEvent *e)
 {
     return e && e->type == PG_EVENT_RESIZED? e->resized.height: 0.0f;
 }
-

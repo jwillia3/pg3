@@ -74,13 +74,18 @@ PgWindow*   pg_window_open(unsigned width, unsigned height, const char *title);
 void        pg_window_free(PgWindow *win);
 void        pg_window_close(PgWindow *win);
 
+
+
 PgPt        pg_window_get_dpi(PgWindow *win);
 float       pg_window_get_dpi_x(PgWindow *win);
 float       pg_window_get_dpi_y(PgWindow *win);
 Pg*         pg_window_get_canvas(PgWindow *win);
 PgPt        pg_window_get_size(PgWindow *win);
+void        pg_window_set_size(PgWindow *win, unsigned width, unsigned height);
 float       pg_window_get_width(PgWindow *win);
 float       pg_window_get_height(PgWindow *win);
+const char* pg_window_get_title(PgWindow *win);
+void        pg_window_set_title(PgWindow *win, const char *title);
 void        pg_window_update(PgWindow *win);
 void        pg_window_queue_update(PgWindow *win);
 void        pg_window_queue_dummy(PgWindow *win);

@@ -266,7 +266,23 @@ _pg_window_close(PgWindow *win)
 void
 _pg_window_free(PgWindow *win)
 {
-    (void) win;
+    if (win == window)
+        window = NULL;
+}
+
+
+void
+_pg_window_set_size(PgWindow *win, unsigned width, unsigned height)
+{
+    if (win == window)
+        XResizeWindow(xdisplay, xwindow, width, height);
+}
+
+void
+_pg_window_set_title(PgWindow *win, const char *title)
+{
+    if (win == window)
+        XStoreName(xdisplay, xwindow, title);
 }
 
 
@@ -696,4 +712,3 @@ name_button_chord(unsigned state, unsigned button)
 
 
 #endif
-
