@@ -60,6 +60,7 @@ struct PgFamily {
 struct PgFace {
     const char          *family;
     const char          *style;
+    const char          *full_name;
     const char          *path;
     unsigned            index;
     unsigned            width_class;

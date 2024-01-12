@@ -50,6 +50,7 @@ pg_font_list_free(void)
 
         for (PgFace *face = fam->faces; face->family; face++) {
             free((void*) face->style);
+            free((void*) face->full_name);
             free((void*) face->path);
         }
     }
@@ -179,6 +180,7 @@ pg_font_list(void)
 
             f.family = strdup(pg_font_prop_string(font, PG_FONT_FAMILY));
             f.style = strdup(pg_font_prop_string(font, PG_FONT_STYLE));
+            f.full_name = strdup(pg_font_prop_string(font, PG_FONT_FULL_NAME));
             f.path = files[i];
             f.index = (unsigned) pg_font_prop_int(font, PG_FONT_INDEX);
             f.width_class = (unsigned) pg_font_prop_int(font, PG_FONT_WIDTH_CLASS);
@@ -338,7 +340,7 @@ find_single_font(const char *family, unsigned weight, bool italic)
     while (fam->name && pg_stricmp(fam->name, family))
         fam++;
 
-    const char *substitute;;
+    const char *substitute;
 
     if ((substitute = _pg_fontconfig_substitute(family)) ||
         (substitute = fallback_substitute(family)))
