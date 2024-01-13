@@ -1,3 +1,5 @@
+.test: test
+
 font-viewer: .libpg3.so font-viewer.c
 	$(CC) $(CFLAGS) -I../../include -L../.. -g -Wall -Wextra font-viewer.c -o font-viewer -lm -lpg3
 

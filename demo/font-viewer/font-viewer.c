@@ -6,6 +6,7 @@
 #include <pg3/pg.h>
 
 float       dpi;
+PgFont      *ui_fixed_font;
 PgFont      *ui_small_font;
 PgFont      *ui_med_font;
 PgFont      *ui_title_font;
@@ -100,10 +101,13 @@ char quick_brown_fox[] =
     "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG.\n"
     ;
 
+char properties_text[4096];
+
 char *specimins[] = {
     lorem_ipsum,
     quick_brown_fox,
     keyboard_keys,
+    properties_text,
 };
 
 void draw_specimin(Pg *g, PgFont *font);
@@ -278,7 +282,94 @@ draw_specimin(Pg *g, PgFont *font)
 
     float line_height = pg_font_get_height(font) * fontmgr.line_height;
 
-    {
+    if (specimins[fontmgr.example] == properties_text) {
+        pg_font_scale(font, fontmgr.size * dpi / 72.0, 0.0);
+
+        float scaled_em = pg_font_prop_float(font, PG_FONT_EM);
+
+        float em = pg_font_prop_float(font, PG_FONT_UNITS);
+        pg_font_scale(font, 0, em);
+
+
+        snprintf(
+            properties_text,
+            sizeof properties_text,
+            "path:          (%s) %s,%d\n"
+            "family:        %s\n"
+            "style name:    %s\n"
+            "full name:     %s\n"
+            "weight         %d %s\n"
+            "width class:   %s\n"
+            "IBM style:     %s %s\n"
+            "pg3 style:     %s %s\n"
+            "PANOSE:        %d %d %d %d %d %d %d %d %d %d\n"
+            "#glyphs:       %d\n"
+            "EM:            %d\n"
+            "EM @ %gpt      %gpx\n"
+            "Avg. Width:    %g\n"
+            "Ascender:      %g\n"
+            "Descender:     %g\n"
+            "X-Height:      %g\n"
+            "Cap-Height:    %g\n"
+            "Line Gap:      %g\n"
+            "Underline:     %g @ %g\n"
+            "Subscript:     (%g, %g) + (%g, %g)\n"
+            "Superscript:   (%g, %g) + (%g, %g)\n"
+            ""
+            "%c"
+            ,
+            pg_font_prop_string(font, PG_FONT_FORMAT),
+            pg_font_prop_string(font, PG_FONT_FILE_PATH),
+            pg_font_prop_int(font, PG_FONT_INDEX),
+            pg_font_prop_string(font, PG_FONT_FAMILY),
+            pg_font_prop_string(font, PG_FONT_STYLE),
+            pg_font_prop_string(font, PG_FONT_FULL_NAME),
+            pg_font_prop_int(font, PG_FONT_WEIGHT),
+            pg_font_prop_string(font, PG_FONT_WEIGHT),
+            pg_font_prop_string(font, PG_FONT_WIDTH_CLASS),
+            pg_font_prop_string(font, PG_FONT_STYLE_CLASS),
+            pg_font_prop_string(font, PG_FONT_STYLE_SUBCLASS),
+            pg_font_prop_string(font, PG_FONT_IS_FIXED),
+            pg_font_prop_int(font, PG_FONT_IS_SANS_SERIF)? "Sans-Serif":
+                pg_font_prop_int(font, PG_FONT_IS_SERIF)? "Serif":
+                "Unknown Serif",
+            pg_font_prop_int(font, PG_FONT_PANOSE_1),
+            pg_font_prop_int(font, PG_FONT_PANOSE_2),
+            pg_font_prop_int(font, PG_FONT_PANOSE_3),
+            pg_font_prop_int(font, PG_FONT_PANOSE_4),
+            pg_font_prop_int(font, PG_FONT_PANOSE_5),
+            pg_font_prop_int(font, PG_FONT_PANOSE_6),
+            pg_font_prop_int(font, PG_FONT_PANOSE_7),
+            pg_font_prop_int(font, PG_FONT_PANOSE_8),
+            pg_font_prop_int(font, PG_FONT_PANOSE_9),
+            pg_font_prop_int(font, PG_FONT_PANOSE_10),
+            pg_font_prop_int(font, PG_FONT_NGLYPHS),
+            pg_font_prop_int(font, PG_FONT_UNITS),
+            fontmgr.size,
+            scaled_em,
+            pg_font_prop_float(font, PG_FONT_AVG_WIDTH),
+            pg_font_prop_float(font, PG_FONT_ASCENDER),
+            pg_font_prop_float(font, PG_FONT_DESCENDER),
+            pg_font_prop_float(font, PG_FONT_XHEIGHT),
+            pg_font_prop_float(font, PG_FONT_CAPHEIGHT),
+            pg_font_prop_float(font, PG_FONT_LINEGAP),
+            pg_font_prop_float(font, PG_FONT_UNDERLINE),
+            pg_font_prop_float(font, PG_FONT_UNDERLINE_SIZE),
+            pg_font_prop_float(font, PG_FONT_SUB_X),
+            pg_font_prop_float(font, PG_FONT_SUB_Y),
+            pg_font_prop_float(font, PG_FONT_SUB_SX),
+            pg_font_prop_float(font, PG_FONT_SUB_SY),
+            pg_font_prop_float(font, PG_FONT_SUP_X),
+            pg_font_prop_float(font, PG_FONT_SUP_Y),
+            pg_font_prop_float(font, PG_FONT_SUP_SX),
+            pg_font_prop_float(font, PG_FONT_SUP_SY),
+            '\n'
+            );
+
+        pg_canvas_printf(g, ui_fixed_font, 0, y, properties_text);
+        pg_canvas_commit(g);
+    }
+    else {
         char    *e = specimins[fontmgr.example];
         while (*e && y < screen_height) {
             int     i = 0;
@@ -295,9 +386,9 @@ draw_specimin(Pg *g, PgFont *font)
             e += len;
             if (*e == '\n') e++;
         }
-    }
 
-    pg_canvas_commit(g);
+        pg_canvas_commit(g);
+    }
 }
 
 void
@@ -434,10 +525,12 @@ int main(int argc, char **argv)
 
     dpi = pg_window_get_dpi(win).y;
 
+    ui_fixed_font = pg_font_find("ui-monospace, monospace, any", 400, false);
     ui_small_font = pg_font_find("system-ui, any", 400, false);
     ui_med_font = pg_font_find("system-ui, any", 400, false);
     ui_title_font = pg_font_find("system-ui, any", 400, false);
 
+    pg_font_scale(ui_fixed_font, 9.0 * dpi / 72.0, 0.0);
     pg_font_scale(ui_small_font, 9.0 * dpi / 72.0, 0.0);
     pg_font_scale(ui_med_font, 12.0 * dpi / 72.0, 0.0);
     pg_font_scale(ui_title_font, 36.0 * dpi / 72.0, 0.0);

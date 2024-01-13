@@ -580,7 +580,8 @@ pg_font_scale(PgFont *font, float sx, float sy)
     else if (sy == 0.0f)
         sy = sx;
 
-    float scale = font->ascender - font->descender;
+    // float scale = font->ascender - font->descender;
+    float scale = font->units;
 
     font->sx = sx / scale;
     font->sy = sy / scale;

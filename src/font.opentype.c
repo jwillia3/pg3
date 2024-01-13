@@ -1783,7 +1783,7 @@ _string(PgFont *font, PgFontProp id)
         return weights[TW(os2, 4) < 1000? TW(os2, 4) / 100: 0];
 
     case PG_FONT_WIDTH_CLASS:
-        return widths[TW(os2, 6) < 1000? TW(os2, 6) / 100: 0];
+        return widths[TW(os2, 6) < 10? TW(os2, 6): 0];
 
     case PG_FONT_PANOSE_1:
     case PG_FONT_PANOSE_2:
